@@ -1,12 +1,13 @@
-import { auth } from "@/app/lib/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export async function middleware(req: NextRequest) {
-  const session = await auth();
+export function middleware(req: NextRequest) {
+  const sessionToken =
+    req.cookies.get("next-auth.session-token") ||
+    req.cookies.get("__Secure-next-auth.session-token");
 
-  // ❌ Belum login
-  if (!session && req.nextUrl.pathname.startsWith("/dashboard")) {
+  // Jika belum login dan akses dashboard
+  if (!sessionToken && req.nextUrl.pathname.startsWith("/dashboard")) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
