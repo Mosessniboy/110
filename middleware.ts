@@ -2,16 +2,27 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
-  const cookies = req.cookies;
-
   const sessionToken =
-    cookies.get("authjs.session-token") ||
-    cookies.get("__Secure-authjs.session-token") ||
-    cookies.get("next-auth.session-token") ||
-    cookies.get("__Secure-next-auth.session-token");
+    req.cookies.get("authjs.session-token") ||
+    req.cookies.get("__Secure-authjs.session-token") ||
+    req.cookies.get("next-auth.session-token") ||
+    req.cookies.get("__Secure-next-auth.session-token");
 
-  // Belum login tapi akses dashboard
-  if (!sessionToken && req.nextUrl.pathname.startsWith("/dashboard")) {
+  const { pathname } = req.nextUrl;
+
+  // Halaman yang BOLEH tanpa login
+  const publicPaths = [
+    "/login",
+    "/register",
+  ];
+
+  const isPublic =
+    publicPaths.some((path) => pathname.startsWith(path)) ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/_next") ||
+    pathname === "/favicon.ico";
+
+  if (!sessionToken && !isPublic) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
@@ -19,5 +30,11 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: [
+    /*
+      Jalankan middleware di SEMUA route
+      kecuali file statis
+    */
+    "/((?!_next/static|_next/image|favicon.ico).*)",
+  ],
 };
