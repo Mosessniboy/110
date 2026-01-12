@@ -59,6 +59,7 @@ export type Transaction = {
   customer_id?: string;
   customer_phone?: string; 
   total_amount: number;
+  ongkir?: number;
   discount_percentage?: number;  // 0 atau 5 (persentase)
   discount_amount?: number;
   date: string; 

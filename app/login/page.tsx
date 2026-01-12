@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const router = useRouter();
 
@@ -73,12 +75,25 @@ export default function LoginPage() {
         {/* PASSWORD */}
         <div>
           <label className="block font-medium mb-1">Password</label>
-          <input
-            type="password"
-            className="w-full border border-pink-200 bg-pink-50 focus:ring-2 focus:ring-pink-400 p-3 rounded-lg outline-none"
-            placeholder="********"
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              className="w-full border border-pink-200 bg-pink-50 focus:ring-2 focus:ring-pink-400 p-3 rounded-lg outline-none"
+              placeholder="********"
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+            >
+              {showPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* BUTTON */}

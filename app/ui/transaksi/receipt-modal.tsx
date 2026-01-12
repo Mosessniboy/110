@@ -16,16 +16,18 @@ export default function ReceiptModal({
     customerPhone?: string;
 }) {
 
-    const { subTotal, discount, grandTotal } = useMemo(() => {
+    const { subTotal, ongkir, discount, grandTotal } = useMemo(() => {
         const calculatedSubTotal = transaction.items?.reduce((sum, item) => {
             return sum + Number(item.subtotal);
         }, 0) || 0;
 
+        const ongkirAmount = Number(transaction.ongkir || 0);
         const finalTotal = Number(transaction.total_amount);
-        const disc = calculatedSubTotal - finalTotal;
+        const disc = calculatedSubTotal + ongkirAmount - finalTotal;
 
         return {
             subTotal: calculatedSubTotal,
+            ongkir: ongkirAmount,
             discount: disc,
             grandTotal: finalTotal
         };
@@ -50,6 +52,10 @@ export default function ReceiptModal({
         
         message += `\n━━━━━━━━━━━━━━━━━━━\n`;
         message += `Subtotal: ${formatCurrency(subTotal)}\n`;
+        
+        if (ongkir > 0) {
+            message += `Ongkir: +${formatCurrency(ongkir)}\n`;
+        }
         
         if (discount > 0) {
             message += `Diskon: -${formatCurrency(discount)}\n`;
@@ -132,6 +138,13 @@ export default function ReceiptModal({
                             <span>Subtotal</span>
                             <span>{formatCurrency(subTotal)}</span>
                         </div>
+
+                        {ongkir > 0 && (
+                            <div className="flex justify-between text-xs text-blue-600 font-medium">
+                                <span>Ongkir</span>
+                                <span>+{formatCurrency(ongkir)}</span>
+                            </div>
+                        )}
 
                         {discount > 0 && (
                             <div className="flex justify-between text-xs text-red-500 font-medium">
