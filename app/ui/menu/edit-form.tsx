@@ -2,20 +2,18 @@
 
 import { useState } from 'react';
 import { useActionState } from 'react';
-import { updateMenu } from '@/app/lib/actions'; // Action Update
+import { updateMenu } from '@/app/lib/actions';
 import { Stock, Menu } from '@/app/lib/definitions';
 import { Plus, Trash, Utensils } from 'lucide-react';
 import Link from 'next/link';
 
 export default function EditMenuForm({ stocks, menu }: { stocks: Stock[], menu: Menu }) {
   const updateMenuWithId = updateMenu.bind(null, menu.id);
-  // Use state for error messages
   const [state, formAction] = useActionState(updateMenuWithId, null);
 
   // INISIALISASI RESEP DARI DATABASE
-  // Mapping dari format DB ke format state lokal
   const initialRecipes = menu.recipes?.map(r => ({
-    stock_id: r.stock_id || r.stock_id, // Sesuaikan dengan field dari query data.ts
+    stock_id: r.stock_id || '',
     stock_name: r.stock_name,
     unit: r.unit,
     amount: r.amount_needed || 0
@@ -68,10 +66,9 @@ export default function EditMenuForm({ stocks, menu }: { stocks: Stock[], menu: 
             <label className="block text-sm font-medium mb-2">Harga Jual (Rp)</label>
             <input name="price" type="number" defaultValue={menu.price} className="w-full rounded-md border border-gray-200 p-2 text-sm outline-pink-500" />
         </div>
-        <div className="md:col-span-2">
-            <label className="block text-sm font-medium mb-2">Deskripsi</label>
-            <textarea name="description" defaultValue={menu.description} rows={2} className="w-full rounded-md border border-gray-200 p-2 text-sm outline-pink-500" />
-        </div>
+       
+        {/* ✅ Hidden description field - preserve existing value */}
+        <input type="hidden" name="description" value={menu.description || '-'} />
       </div>
 
       <hr className="border-gray-100 my-6" />
@@ -130,7 +127,6 @@ export default function EditMenuForm({ stocks, menu }: { stocks: Stock[], menu: 
         <input type="hidden" name="recipes" value={JSON.stringify(recipes)} />
       </div>
 
-      {/* ADDED: Display Server Action Error Message if any */}
       {state?.message && (
          <p className="mb-4 text-sm text-red-500">{state.message}</p>
       )}

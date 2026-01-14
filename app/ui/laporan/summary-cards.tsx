@@ -1,9 +1,9 @@
 // app/ui/laporan/summary-cards.tsx
 
 import { formatCurrency } from '@/app/lib/utils';
-import { Banknote, ShoppingBag, Users, Activity, TrendingUp, TrendingDown, Minus, LucideIcon } from 'lucide-react';
+import { Banknote, ShoppingBag, Users, Activity, TrendingUp, TrendingDown, Minus, LucideIcon, DollarSign } from 'lucide-react';
 
-// Tipe data props yang baru
+// ✅ Tipe data props yang baru dengan Net Profit
 type SummaryData = {
     totalRevenue: number;
     revenueGrowth: number;
@@ -13,6 +13,9 @@ type SummaryData = {
     customerGrowth: number;
     avgTransaction: number;
     avgGrowth: number;
+    netProfit: number;           // ✅ BARU
+    profitGrowth: number;        // ✅ BARU
+    profitMargin: number;        // ✅ BARU (dalam %)
 };
 
 interface CardProps {
@@ -20,6 +23,7 @@ interface CardProps {
   value: string;
   growth: number;
   icon: LucideIcon;
+  subtitle?: string;  // ✅ Optional subtitle untuk info tambahan
 }
 
 export default function SummaryCards({ data }: { data: SummaryData }) {
@@ -39,6 +43,15 @@ export default function SummaryCards({ data }: { data: SummaryData }) {
                     icon={Banknote}
                 />
 
+                {/* ✅ CARD BARU: Net Profit */}
+                <Card
+                    title="Profit Bersih"
+                    value={formatCurrency(data.netProfit)}
+                    growth={data.profitGrowth}
+                    icon={DollarSign}
+                    subtitle={`Margin: ${data.profitMargin.toFixed(1)}%`}
+                />
+
                 <Card
                     title="Total Transaksi"
                     value={`${data.totalTransactions} Transaksi`}
@@ -53,21 +66,23 @@ export default function SummaryCards({ data }: { data: SummaryData }) {
                     icon={Users}
                 />
 
+            </div>
+
+            {/* ✅ Card Rata-rata dibawah (optional, atau bisa tetap di grid) */}
+            <div className="mt-6">
                 <Card
                     title="Rata-rata Transaksi"
                     value={formatCurrency(data.avgTransaction)}
                     growth={data.avgGrowth}
                     icon={Activity}
                 />
-
             </div>
         </div>
     );
 }
 
-// Sub-komponen Card agar kode lebih bersih
-function Card({ title, value, growth, icon: Icon }: CardProps) {
-    // Logic Warna & Icon berdasarkan positif/negatif
+// Sub-komponen Card
+function Card({ title, value, growth, icon: Icon, subtitle }: CardProps) {
     const isPositive = growth > 0;
     const isNeutral = growth === 0;
     const isNegative = growth < 0;
@@ -83,7 +98,7 @@ function Card({ title, value, growth, icon: Icon }: CardProps) {
     } else if (isNegative) {
         colorClass = "text-red-500";
         TrendIcon = TrendingDown;
-        prefix = ""; // minus sudah otomatis ada di angka
+        prefix = "";
     }
 
     return (
@@ -92,6 +107,11 @@ function Card({ title, value, growth, icon: Icon }: CardProps) {
                 <Icon className="w-4 h-4" /> {title}
             </div>
             <p className="text-2xl font-bold text-pink-600">{value}</p>
+
+            {/* ✅ Subtitle (untuk margin info) */}
+            {subtitle && (
+                <p className="text-xs text-gray-600 mt-1">{subtitle}</p>
+            )}
 
             <p className={`text-xs font-medium mt-2 flex items-center gap-1 ${colorClass}`}>
                 <TrendIcon className="w-3 h-3" />

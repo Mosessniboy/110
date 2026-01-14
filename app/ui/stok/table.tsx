@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Stock } from '@/app/lib/definitions';
-import { formatNumber } from '@/app/lib/utils';
+import { formatNumber, formatCurrency } from '@/app/lib/utils';
 import StockStatusBadge from './status';
 import { Pencil, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import { deleteStock } from '@/app/lib/actions';
@@ -45,6 +45,7 @@ export default function StocksTable({ stocks }: { stocks: Stock[] }) {
                             <th className="px-3 py-5 font-medium">Nama Bahan</th>
                             <th className="px-3 py-5 font-medium">Stok Tersedia</th>
                             <th className="px-3 py-5 font-medium">Stok Minimum</th>
+                            <th className="px-3 py-5 font-medium">Harga / Unit</th>
                             <th className="px-3 py-5 font-medium">Status</th>
                             <th className="py-3 pl-6 pr-3">Aksi</th>
                         </tr>
@@ -61,6 +62,9 @@ export default function StocksTable({ stocks }: { stocks: Stock[] }) {
                                     </td>
                                     <td className="px-3 py-3 text-gray-500">
                                         {formatNumber(item.min_stock)} {item.unit}
+                                    </td>
+                                    <td className="px-3 py-3 font-bold text-gray-700">
+                                        {formatCurrency(item.cost_per_unit)}
                                     </td>
                                     <td className="px-3 py-3"><StockStatusBadge status={status} /></td>
                                     <td className="whitespace-nowrap py-3 pl-6 pr-3">
@@ -96,9 +100,7 @@ export default function StocksTable({ stocks }: { stocks: Stock[] }) {
                         </div>
 
                         <div className="text-center">
-                            <h3 className="text-lg font-bold text-gray-900">
-                                Hapus Stok Bahan?
-                            </h3>
+                            <h3 className="text-lg font-bold text-gray-900">Hapus Stok Bahan?</h3>
                             <p className="mt-2 text-sm text-gray-500">
                                 Apakah Anda yakin ingin menghapus data ini? Tindakan ini tidak dapat dibatalkan.
                             </p>

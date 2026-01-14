@@ -12,8 +12,6 @@ import {
   User,
   Search,
   Utensils,
-  Percent,
-  Truck,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -37,28 +35,16 @@ export default function POSTransaction({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
-  const [useDiscount, setUseDiscount] = useState(false);
   const [editingQty, setEditingQty] = useState<{ [key: string]: string }>({});
-  const [ongkir, setOngkir] = useState('0');
 
   const filteredMenus = menus.filter((m) =>
     m.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const { subTotal, discountAmount, ongkirAmount, grandTotal } = useMemo(() => {
-    const sub = cart.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
-    const disc = useDiscount ? sub * 0.05 : 0;
-    const ongkirNum = parseInt(ongkir) || 0;
-    return {
-      subTotal: sub,
-      discountAmount: disc,
-      ongkirAmount: ongkirNum,
-      grandTotal: sub - disc + ongkirNum,
-    };
-  }, [cart, useDiscount, ongkir]);
+  const subTotal = useMemo(
+    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [cart]
+  );
 
   const addToCart = (menu: Menu) => {
     setCart((prev) => {
@@ -115,12 +101,6 @@ export default function POSTransaction({
     if (e.key === 'Enter') {
       (e.target as HTMLInputElement).blur();
     }
-  };
-
-  const handleOngkirChange = (value: string) => {
-    // Hanya izinkan angka
-    const numericValue = value.replace(/[^0-9]/g, '');
-    setOngkir(numericValue);
   };
 
   const getStatusIcon = (freq: number) => {
@@ -273,51 +253,6 @@ export default function POSTransaction({
 
           {/* Footer - Summary */}
           <div className="p-4 bg-gray-50 border-t space-y-3">
-            {/* Ongkir */}
-            {cart.length > 0 && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Truck className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-semibold text-gray-800">
-                    Ongkos Kirim
-                  </span>
-                </div>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
-                    Rp
-                  </span>
-                  <input
-                    type="text"
-                    value={ongkir}
-                    onChange={(e) => handleOngkirChange(e.target.value)}
-                    placeholder="0"
-                    className="w-full pl-9 pr-4 py-2 rounded-lg border border-blue-200 text-sm focus:outline-blue-500 focus:border-blue-500 bg-white"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Toggle Diskon */}
-            {cart.length > 0 && (
-              <label className="flex items-center gap-2 p-3 bg-pink-50 border border-pink-200 rounded-lg cursor-pointer hover:bg-pink-100 transition">
-                <input
-                  type="checkbox"
-                  checked={useDiscount}
-                  onChange={(e) => setUseDiscount(e.target.checked)}
-                  className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
-                />
-                <Percent className="w-4 h-4 text-pink-600" />
-                <span className="text-sm font-semibold text-gray-800">
-                  Diskon 5%
-                </span>
-                {useDiscount && (
-                  <span className="ml-auto text-xs text-pink-600 font-bold">
-                    -{formatCurrency(discountAmount)}
-                  </span>
-                )}
-              </label>
-            )}
-
             {/* Summary */}
             <div className="space-y-1">
               <div className="flex justify-between text-sm text-gray-600">
@@ -325,34 +260,17 @@ export default function POSTransaction({
                 <span>{formatCurrency(subTotal)}</span>
               </div>
 
-              {ongkirAmount > 0 && (
-                <div className="flex justify-between text-sm text-blue-600 font-semibold">
-                  <span>Ongkir</span>
-                  <span>+{formatCurrency(ongkirAmount)}</span>
-                </div>
-              )}
-
-              {useDiscount && (
-                <div className="flex justify-between text-sm text-pink-600 font-semibold">
-                  <span>Diskon (5%)</span>
-                  <span>-{formatCurrency(discountAmount)}</span>
-                </div>
-              )}
-
               <div className="flex justify-between items-center pt-2 border-t">
                 <span className="font-bold text-gray-800">Total Bayar</span>
                 <span className="text-2xl font-bold text-pink-600">
-                  {formatCurrency(grandTotal)}
+                  {formatCurrency(subTotal)}
                 </span>
               </div>
             </div>
 
             {/* Hidden Inputs */}
             <input type="hidden" name="items" value={JSON.stringify(cart)} />
-            <input type="hidden" name="totalAmount" value={grandTotal} />
-            <input type="hidden" name="ongkir" value={ongkirAmount} />
-            <input type="hidden" name="discountPercentage" value={useDiscount ? 5 : 0} />
-            <input type="hidden" name="discountAmount" value={discountAmount} />
+            <input type="hidden" name="totalAmount" value={subTotal} />
 
             {/* Buttons */}
             <div className="grid grid-cols-2 gap-3">

@@ -8,7 +8,7 @@ import StatusFilter from '@/app/ui/stok/status-filter';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Stok Bahan Baku | BABIPEDIA Dashboard',
+  title: 'Stok Bahan Baku | 110 Coffee',
   description: 'Halaman untuk mengelola stok bahan baku dalam sistem.',
 };
 

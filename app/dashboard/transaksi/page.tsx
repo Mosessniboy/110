@@ -11,7 +11,7 @@ import Search from '@/app/ui/search';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Transaksi | BABIPEDIA Dashboard',
+  title: 'Transaksi | 110 Coffee',
   description: 'Halaman untuk mengelola dan memantau transaksi penjualan dalam sistem.',
 };
 

@@ -26,6 +26,7 @@ export type Stock = {
   unit: 'gram' | 'ml' | 'pcs' | 'lembar';
   stock: number;
   min_stock: number;
+  cost_per_unit: number;
 };
 
 export type RecipeItem = {
@@ -33,6 +34,7 @@ export type RecipeItem = {
   stock_name: string;
   unit: string;
   amount_needed: number;
+  hpp?: number;
 };
 
 export type Menu = {
@@ -43,6 +45,7 @@ export type Menu = {
   sold_count: number;
   is_deleted: boolean;
   recipes?: RecipeItem[]; 
+  hpp?: number;
 };
 
 export type TransactionItem = {

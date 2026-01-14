@@ -4,10 +4,9 @@ import Link from 'next/link';
 import { useActionState } from 'react';
 import { updateStock, StockState } from '@/app/lib/actions';
 import { Stock } from '@/app/lib/definitions';
-import { Package, Layers } from 'lucide-react';
+import { Package, Layers, DollarSign } from 'lucide-react';
 
 export default function EditStockForm({ stock }: { stock: Stock }) {
-  // Kita bind ID ke server action agar server tahu ID mana yang diupdate
   const updateStockWithId = updateStock.bind(null, stock.id);
   
   const initialState: StockState = { message: null, errors: {}, values: {} };
@@ -24,7 +23,7 @@ export default function EditStockForm({ stock }: { stock: Stock }) {
           <input
             name="name"
             type="text"
-            defaultValue={state.values?.name || stock.name}
+            defaultValue={state.values?.name ? String(state.values.name) : stock.name}
             className="block w-full rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 focus:border-pink-500 focus:ring-pink-500"
           />
         </div>
@@ -42,7 +41,7 @@ export default function EditStockForm({ stock }: { stock: Stock }) {
           <Layers className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <select
             name="unit"
-            defaultValue={state.values?.unit || stock.unit}
+            defaultValue={state.values?.unit ? String(state.values.unit) : stock.unit}
             className="block w-full rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 focus:border-pink-500 focus:ring-pink-500 bg-white"
           >
             <option value="gram">Gram (g)</option>
@@ -66,7 +65,7 @@ export default function EditStockForm({ stock }: { stock: Stock }) {
             name="stock"
             type="number"
             step="0.01"
-            defaultValue={state.values?.stock || stock.stock}
+            defaultValue={state.values?.stock ?? stock.stock}
             className="block w-full rounded-md border border-gray-200 py-2 px-4 text-sm outline-2 focus:border-pink-500 focus:ring-pink-500"
           />
           <div aria-live="polite">
@@ -83,7 +82,7 @@ export default function EditStockForm({ stock }: { stock: Stock }) {
             name="min_stock"
             type="number"
             step="0.01"
-            defaultValue={state.values?.min_stock || stock.min_stock}
+            defaultValue={state.values?.min_stock ?? stock.min_stock}
             className="block w-full rounded-md border border-gray-200 py-2 px-4 text-sm outline-2 focus:border-pink-500 focus:ring-pink-500"
           />
           <div aria-live="polite">
@@ -91,6 +90,31 @@ export default function EditStockForm({ stock }: { stock: Stock }) {
               <p className="mt-2 text-sm text-red-500">{state.errors.min_stock[0]}</p>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* --- HARGA PER UNIT --- */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium mb-2 text-gray-900">
+          Harga Per Unit <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <DollarSign className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <input
+            name="cost_per_unit"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue={state.values?.cost_per_unit ?? stock.cost_per_unit}
+            placeholder="Masukkan harga per unit"
+            required
+            className="block w-full rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 focus:border-pink-500 focus:ring-pink-500"
+          />
+        </div>
+        <div aria-live="polite">
+          {state.errors?.cost_per_unit && (
+            <p className="mt-2 text-sm text-red-500">{state.errors.cost_per_unit[0]}</p>
+          )}
         </div>
       </div>
     

@@ -8,6 +8,7 @@ import { fetchTransactionById } from './data';
 import sql from './db';
 // const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
 import { auth } from '@/app/lib/auth'
+import { HandGrab } from 'lucide-react';
 
 
 const FormSchema = z.object({
@@ -209,14 +210,14 @@ export async function deleteCustomer(id: string) {
 //stok
 //------------
 
+// Bagian Stock dari actions.ts - COPY PASTE ini menggantikan bagian stock yang lama
+
 const StockSchema = z.object({
-  name: z.string().trim().min(1, { message: 'Nama bahan wajib diisi.' }),
-  unit: z.enum(['gram', 'ml', 'pcs', 'lembar'], {
-    invalid_type_error: 'Pilih satuan yang valid.',
-  }),
-  stock: z.coerce.number().min(0, { message: 'Stok awal tidak boleh minus.' }),
-  min_stock: z.coerce.number().min(1, { message: 'Stok minimum harus diisi.' }),
- 
+  name: z.string().min(1, { message: 'Nama tidak boleh kosong.' }),
+  unit: z.enum(['gram', 'ml', 'pcs', 'lembar'], { message: 'Satuan tidak valid.' }),
+  stock: z.coerce.number().min(0, { message: 'Stok tidak boleh negatif.' }),
+  min_stock: z.coerce.number().min(0, { message: 'Stok minimum tidak boleh negatif.' }),
+  cost_per_unit: z.coerce.number().min(0, { message: 'Harga per unit tidak boleh negatif.' }),
 });
 
 export type StockState = {
@@ -225,87 +226,117 @@ export type StockState = {
     unit?: string[];
     stock?: string[];
     min_stock?: string[];
-    
+    cost_per_unit?: string[];
   };
   message?: string | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  values?: any;
+  values?: {
+    name?: string;
+    unit?: string;
+    stock?: number;
+    min_stock?: number;
+    cost_per_unit?: number;
+  };
 };
 
-export async function createStock(prevState: StockState, formData: FormData) {
+export async function createStock(prevState: StockState, formData: FormData): Promise<StockState> {
   const rawData = {
     name: formData.get('name'),
     unit: formData.get('unit'),
     stock: formData.get('stock'),
     min_stock: formData.get('min_stock'),
-    // HAPUS: price_per_unit & supplier
+    cost_per_unit: formData.get('cost_per_unit'),
   };
 
   const validated = StockSchema.safeParse(rawData);
-
+  
   if (!validated.success) {
     return {
       errors: validated.error.flatten().fieldErrors,
       message: 'Gagal menyimpan. Periksa input Anda.',
-      values: rawData,
+      values: {
+        name: rawData.name as string,
+        unit: rawData.unit as string,
+        stock: rawData.stock ? Number(rawData.stock) : undefined,
+        min_stock: rawData.min_stock ? Number(rawData.min_stock) : undefined,
+        cost_per_unit: rawData.cost_per_unit ? Number(rawData.cost_per_unit) : undefined,
+      },
     };
   }
 
-  const { name, unit, stock, min_stock } = validated.data;
+  const { name, unit, stock, min_stock, cost_per_unit } = validated.data;
 
   try {
     await sql`
-      INSERT INTO stocks (name, unit, stock, min_stock)
-      VALUES (${name}, ${unit}, ${stock}, ${min_stock})
+      INSERT INTO stocks (name, unit, stock, min_stock, cost_per_unit)
+      VALUES (${name}, ${unit}, ${stock}, ${min_stock}, ${cost_per_unit})
     `;
   } catch (error) {
     console.error('Database Error:', error);
-    return { message: 'Database Error: Gagal membuat stok.', values: rawData };
+    return {
+      message: 'Database Error: Gagal membuat stok.',
+      values: {
+        name: rawData.name as string,
+        unit: rawData.unit as string,
+        stock: rawData.stock ? Number(rawData.stock) : undefined,
+        min_stock: rawData.min_stock ? Number(rawData.min_stock) : undefined,
+        cost_per_unit: rawData.cost_per_unit ? Number(rawData.cost_per_unit) : undefined,
+      },
+    };
   }
 
   revalidatePath('/dashboard/stok');
   redirect('/dashboard/stok');
 }
-export async function updateStock(
-  id: string,
-  prevState: StockState,
-  formData: FormData
-) {
+
+export async function updateStock(id: string, prevState: StockState, formData: FormData): Promise<StockState> {
   const rawData = {
     name: formData.get('name'),
     unit: formData.get('unit'),
     stock: formData.get('stock'),
     min_stock: formData.get('min_stock'),
-    // HAPUS: price_per_unit & supplier
+    cost_per_unit: formData.get('cost_per_unit'),
   };
 
   const validated = StockSchema.safeParse(rawData);
-
+  
   if (!validated.success) {
     return {
       errors: validated.error.flatten().fieldErrors,
       message: 'Gagal mengupdate. Periksa input Anda.',
-      values: rawData,
+      values: {
+        name: rawData.name as string,
+        unit: rawData.unit as string,
+        stock: rawData.stock ? Number(rawData.stock) : undefined,
+        min_stock: rawData.min_stock ? Number(rawData.min_stock) : undefined,
+        cost_per_unit: rawData.cost_per_unit ? Number(rawData.cost_per_unit) : undefined,
+      },
     };
   }
 
-  const { name, unit, stock, min_stock } = validated.data;
+  const { name, unit, stock, min_stock, cost_per_unit } = validated.data;
 
   try {
     await sql`
       UPDATE stocks
-      SET 
-        name = ${name}, 
-        unit = ${unit}, 
-        stock = ${stock}, 
-        min_stock = ${min_stock}
+      SET
+        name = ${name},
+        unit = ${unit},
+        stock = ${stock},
+        min_stock = ${min_stock},
+        cost_per_unit = ${cost_per_unit}
       WHERE id = ${id}
     `;
   } catch (error) {
     console.error('Database Error:', error);
     return {
       message: 'Database Error: Gagal mengupdate stok.',
-      values: rawData
+      values: {
+        name: rawData.name as string,
+        unit: rawData.unit as string,
+        stock: rawData.stock ? Number(rawData.stock) : undefined,
+        min_stock: rawData.min_stock ? Number(rawData.min_stock) : undefined,
+        cost_per_unit: rawData.cost_per_unit ? Number(rawData.cost_per_unit) : undefined,
+      },
     };
   }
 
@@ -314,13 +345,25 @@ export async function updateStock(
 }
 
 export async function deleteStock(id: string) {
-  await sql`DELETE FROM stocks WHERE id = ${id}`;
+  try {
+    await sql`
+      DELETE FROM stocks WHERE id = ${id}
+    `;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Gagal menghapus stok.');
+  }
+
   revalidatePath('/dashboard/stok');
 }
 
 //--------------------------------------------
 // Menu Actions
 //--------------------------------------------
+
+// Replace Menu Actions di actions.ts dengan ini:
+
+// Replace Menu Actions di actions.ts dengan ini:
 
 const MenuSchema = z.object({
   name: z.string().min(1, { message: 'Nama menu wajib diisi' }),
@@ -335,7 +378,32 @@ const MenuSchema = z.object({
   }),
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// ✅ FUNGSI HELPER: Hitung HPP dari resep
+async function calculateHPP(recipes: { stock_id: string; amount: number }[]) {
+  let totalHPP = 0;
+
+  for (const recipe of recipes) {
+    const stock = await sql`
+      SELECT cost_per_unit FROM stocks WHERE id = ${recipe.stock_id} LIMIT 1
+    `;
+    
+    if (stock.length > 0) {
+      const costPerUnit = Number(stock[0].cost_per_unit);
+      const cost = costPerUnit * recipe.amount;
+      totalHPP += cost;
+      
+      // ✅ DEBUG LOG
+      console.log(`Recipe: ${recipe.stock_id}, Cost/Unit: ${costPerUnit}, Amount: ${recipe.amount}, Total: ${cost}`);
+    }
+  }
+
+  // ✅ Round to 2 decimal untuk presisi
+  const rounded = Math.round(totalHPP * 100) / 100;
+  console.log(`Total HPP: ${totalHPP} -> Rounded: ${rounded}`);
+  
+  return rounded;
+}
+
 export async function createMenu(prevState: any, formData: FormData) {
   const rawData = {
     name: formData.get('name'),
@@ -356,13 +424,18 @@ export async function createMenu(prevState: any, formData: FormData) {
   const { name, description, price, recipes } = validated.data;
 
   try {
+    // ✅ 1. Hitung HPP
+    const hpp = await calculateHPP(recipes);
+
+    // ✅ 2. Insert Menu dengan HPP
     const menuResult = await sql`
-      INSERT INTO menus (name, description, price, sold_count, is_deleted)
-      VALUES (${name}, ${description}, ${price}, 0, FALSE)
+      INSERT INTO menus (name, description, price, hpp, sold_count, is_deleted)
+      VALUES (${name}, ${description}, ${price}, ${hpp}, 0, FALSE)
       RETURNING id
     `;
     const newMenuId = menuResult[0].id;
 
+    // 3. Insert Resep
     if (recipes.length > 0) {
       for (const recipe of recipes) {
         await sql`
@@ -381,7 +454,6 @@ export async function createMenu(prevState: any, formData: FormData) {
   redirect('/dashboard/menu');
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function updateMenu(id: string, prevState: any, formData: FormData) {
   const rawData = {
     name: formData.get('name'),
@@ -390,7 +462,6 @@ export async function updateMenu(id: string, prevState: any, formData: FormData)
     recipes: formData.get('recipes'),
   };
 
-  // Pakai Schema yang sama dengan Create
   const validated = MenuSchema.safeParse(rawData);
 
   if (!validated.success) {
@@ -403,17 +474,19 @@ export async function updateMenu(id: string, prevState: any, formData: FormData)
   const { name, description, price, recipes } = validated.data;
 
   try {
-    // 1. Update Info Menu Utama
+    // ✅ 1. Hitung HPP baru
+    const hpp = await calculateHPP(recipes);
+
+    // ✅ 2. Update Menu dengan HPP
     await sql`
       UPDATE menus 
-      SET name = ${name}, description = ${description}, price = ${price}
+      SET name = ${name}, description = ${description}, price = ${price}, hpp = ${hpp}
       WHERE id = ${id}
     `;
 
-    // 2. DELETE Semua Resep Lama (Cara paling aman untuk update many-to-many)
+    // 3. DELETE & INSERT ulang resep
     await sql`DELETE FROM menu_recipes WHERE menu_id = ${id}`;
 
-    // 3. INSERT Resep Baru
     if (recipes.length > 0) {
       for (const recipe of recipes) {
         await sql`

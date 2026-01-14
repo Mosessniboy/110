@@ -65,13 +65,14 @@ export async function fetchCustomerCounts() {
   }
 }
 
+// Replace function fetchStocks di data.ts dengan ini:
+
 export async function fetchStocks(query: string = '', status: string = '') {
   noStore();
   try {
     const searchFilter = sql`
       (name ILIKE ${`%${query}%`})
     `;
-    // HAPUS: OR supplier ILIKE
 
     let statusFilter = sql``; 
 
@@ -83,8 +84,10 @@ export async function fetchStocks(query: string = '', status: string = '') {
       statusFilter = sql`AND stock > min_stock`;
     }
     
+    // ✅ TAMBAHKAN cost_per_unit di SELECT
     const data = await sql<Stock[]>`
-      SELECT id, name, unit, stock, min_stock FROM stocks
+      SELECT id, name, unit, stock, min_stock, cost_per_unit 
+      FROM stocks
       WHERE ${searchFilter} ${statusFilter}
       ORDER BY name ASC
     `;
@@ -162,7 +165,8 @@ export async function fetchMenus(query: string = '') {
         m.id,
         m.name,
         m.description,
-        m.price,
+        m.price::numeric as price,  -- ✅ Cast to numeric
+        COALESCE(m.hpp, 0)::numeric as hpp,  -- ✅ Cast to numeric
         m.sold_count,
         m.is_deleted,
         COALESCE(
@@ -184,10 +188,17 @@ export async function fetchMenus(query: string = '') {
       GROUP BY m.id
       ORDER BY m.sold_count DESC
     `;
-    return data;
+    
+    // ✅ Ensure numbers are numbers
+    return data.map(menu => ({
+      ...menu,
+      price: Number(menu.price),
+      hpp: Number(menu.hpp || 0),
+      sold_count: Number(menu.sold_count)
+    }));
   } catch (error) {
     console.error('Database Error:', error);
-    throw new Error('Failed to fetch menus.');
+    return [];
   }
 }
 
@@ -447,44 +458,83 @@ function calculateGrowth(current: number, previous: number) {
   return ((current - previous) / previous) * 100;
 }
 
+
+// app/lib/data.ts
+
 export async function fetchReportSummary(year: number) {
   noStore();
   const prevYear = year - 1;
 
   try {
+    // 1. Current Year Data
     const currentDataPromise = sql`
       SELECT 
-        SUM(total_amount) as revenue, 
-        COUNT(id) as transactions,
-        COUNT(DISTINCT customer_id) as customers
-      FROM transactions 
-      WHERE EXTRACT(YEAR FROM created_at) = ${year}
+        SUM(t.total_amount) as revenue,
+        COUNT(t.id) as transactions,
+        COUNT(DISTINCT t.customer_id) as customers
+      FROM transactions t
+      WHERE EXTRACT(YEAR FROM t.created_at) = ${year}
     `;
 
+    // 2. Previous Year Data
     const prevDataPromise = sql`
       SELECT 
-        SUM(total_amount) as revenue, 
-        COUNT(id) as transactions,
-        COUNT(DISTINCT customer_id) as customers
-      FROM transactions 
-      WHERE EXTRACT(YEAR FROM created_at) = ${prevYear}
+        SUM(t.total_amount) as revenue,
+        COUNT(t.id) as transactions,
+        COUNT(DISTINCT t.customer_id) as customers
+      FROM transactions t
+      WHERE EXTRACT(YEAR FROM t.created_at) = ${prevYear}
     `;
 
-    const [currResult, prevResult] = await Promise.all([currentDataPromise, prevDataPromise]);
+    // ✅ 3. HPP Calculation for Current Year
+    const currentHPPPromise = sql`
+      SELECT 
+        SUM(ti.quantity * COALESCE(m.hpp, 0)) as total_hpp
+      FROM transaction_items ti
+      JOIN transactions t ON ti.transaction_id = t.id
+      JOIN menus m ON ti.menu_id = m.id
+      WHERE EXTRACT(YEAR FROM t.created_at) = ${year}
+    `;
+
+    // ✅ 4. HPP Calculation for Previous Year
+    const prevHPPPromise = sql`
+      SELECT 
+        SUM(ti.quantity * COALESCE(m.hpp, 0)) as total_hpp
+      FROM transaction_items ti
+      JOIN transactions t ON ti.transaction_id = t.id
+      JOIN menus m ON ti.menu_id = m.id
+      WHERE EXTRACT(YEAR FROM t.created_at) = ${prevYear}
+    `;
+
+    const [currResult, prevResult, currHPP, prevHPP] = await Promise.all([
+      currentDataPromise,
+      prevDataPromise,
+      currentHPPPromise,
+      prevHPPPromise,
+    ]);
 
     const current = {
       revenue: Number(currResult[0].revenue) || 0,
       transactions: Number(currResult[0].transactions) || 0,
       customers: Number(currResult[0].customers) || 0,
-      avg: (Number(currResult[0].revenue) || 0) / (Number(currResult[0].transactions) || 1),
+      hpp: Number(currHPP[0].total_hpp) || 0,
     };
 
     const previous = {
       revenue: Number(prevResult[0].revenue) || 0,
       transactions: Number(prevResult[0].transactions) || 0,
       customers: Number(prevResult[0].customers) || 0,
-      avg: (Number(prevResult[0].revenue) || 0) / (Number(prevResult[0].transactions) || 1),
+      hpp: Number(prevHPP[0].total_hpp) || 0,
     };
+
+    // ✅ Calculate Net Profit
+    const currentProfit = current.revenue - current.hpp;
+    const previousProfit = previous.revenue - previous.hpp;
+    
+    // ✅ Calculate Profit Margin
+    const profitMargin = current.revenue > 0 
+      ? (currentProfit / current.revenue) * 100 
+      : 0;
 
     return {
       totalRevenue: current.revenue,
@@ -496,8 +546,18 @@ export async function fetchReportSummary(year: number) {
       totalCustomers: current.customers,
       customerGrowth: calculateGrowth(current.customers, previous.customers),
       
-      avgTransaction: current.avg,
-      avgGrowth: calculateGrowth(current.avg, previous.avg),
+      avgTransaction: current.transactions > 0 
+        ? current.revenue / current.transactions 
+        : 0,
+      avgGrowth: calculateGrowth(
+        current.transactions > 0 ? current.revenue / current.transactions : 0,
+        previous.transactions > 0 ? previous.revenue / previous.transactions : 0
+      ),
+
+      // ✅ NEW: Profit Data
+      netProfit: currentProfit,
+      profitGrowth: calculateGrowth(currentProfit, previousProfit),
+      profitMargin: profitMargin,
     };
 
   } catch (error) {
@@ -506,10 +566,14 @@ export async function fetchReportSummary(year: number) {
       totalRevenue: 0, revenueGrowth: 0,
       totalTransactions: 0, transactionGrowth: 0,
       totalCustomers: 0, customerGrowth: 0,
-      avgTransaction: 0, avgGrowth: 0
+      avgTransaction: 0, avgGrowth: 0,
+      netProfit: 0, profitGrowth: 0, profitMargin: 0,  // ✅ NEW
     };
   }
 }
+
+
+
 export async function fetchTopMenuData() {
   noStore();
   try {

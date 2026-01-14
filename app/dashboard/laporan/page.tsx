@@ -6,7 +6,7 @@ import YearFilter from '@/app/ui/laporan/year-filter';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Laporan | BABIPEDIA Dashboard',
+  title: 'Laporan | 110 Coffee',
 };
 
 export default async function Page(props: { searchParams?: Promise<{ year?: string }> }) {

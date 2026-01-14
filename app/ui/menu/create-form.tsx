@@ -50,16 +50,15 @@ export default function CreateMenuForm({ stocks }: { stocks: Stock[] }) {
             <div className="grid gap-4 md:grid-cols-2 mb-6">
                 <div>
                     <label className="block text-sm font-medium mb-2">Nama Menu</label>
-                    <input name="name" className="w-full rounded-md border border-gray-200 p-2 text-sm outline-pink-500" placeholder="Cth: Sate Babi Manis" />
+                    <input name="name" className="w-full rounded-md border border-gray-200 p-2 text-sm outline-pink-500" placeholder="Cth: Latte" />
                 </div>
                 <div>
                     <label className="block text-sm font-medium mb-2">Harga Jual (Rp)</label>
                     <input name="price" type="number" className="w-full rounded-md border border-gray-200 p-2 text-sm outline-pink-500" placeholder="0" />
                 </div>
-                <div className="md:col-span-2">
-                    <label className="block text-sm font-medium mb-2">Deskripsi</label>
-                    <textarea name="description" rows={2} className="w-full rounded-md border border-gray-200 p-2 text-sm outline-pink-500" placeholder="Penjelasan singkat menu..." />
-                </div>
+                
+                {/* ✅ Hidden description field */}
+                <input type="hidden" name="description" value="-" />
             </div>
 
             <hr className="border-gray-100 my-6" />

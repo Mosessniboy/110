@@ -7,7 +7,7 @@ import Search from '@/app/ui/search';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Menu | BABIPEDIA Dashboard',
+  title: 'Menu | 110 Coffee',
 };
 
 export default async function Page(props: { searchParams?: Promise<{ query?: string }> }) {
