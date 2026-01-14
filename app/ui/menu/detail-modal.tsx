@@ -34,9 +34,7 @@ export default function MenuDetailModal({ menu, onClose }: { menu: Menu; onClose
             {/* Harga & Deskripsi */}
             <div className="mb-6">
                 <p className="text-3xl font-bold text-gray-900 mb-2">{formatCurrency(menu.price)}</p>
-                <p className="text-gray-500 leading-relaxed bg-gray-50 p-3 rounded-lg border border-gray-100">
-                    {menu.description}
-                </p>
+                
             </div>
 
             {/* Resep Detail */}

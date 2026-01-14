@@ -3,18 +3,17 @@
 import { useState } from 'react';
 import { Menu } from '@/app/lib/definitions';
 import { formatCurrency } from '@/app/lib/utils';
-import { Pencil, Trash2, AlertTriangle, Loader2, TrendingUp, TrendingDown, ShoppingBag } from 'lucide-react';
+import { Pencil, Trash2, AlertTriangle, Loader2, TrendingUp, TrendingDown, ShoppingBag, Eye } from 'lucide-react';
 import { deleteMenu } from '@/app/lib/actions';
 import Link from 'next/link';
+import MenuDetailModal from '@/app/ui/menu/detail-modal'; // import modal
 
 export default function MenuCard({ menu }: { menu: Menu }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false); // state modal detail
 
-  const handleDeleteClick = () => {
-    setIsModalOpen(true);
-  };
-
+  const handleDeleteClick = () => setIsModalOpen(true);
   const handleConfirmDelete = async () => {
     setIsDeleting(true);
     try {
@@ -29,21 +28,11 @@ export default function MenuCard({ menu }: { menu: Menu }) {
   };
 
   // Kalkulasi HPP & Margin
-  // ✅ Convert to number explicitly
   const price = Number(menu.price);
   const hpp = Number(menu.hpp) || 0;
   const profit = price - hpp;
   const margin = price > 0 ? ((price - hpp) / price) * 100 : 0;
 
-  // DEBUG LOG (bisa dihapus nanti)
-  console.log('Menu:', menu.name, {
-    price: price,
-    hpp: hpp,
-    profit: profit,
-    margin: margin
-  });
-
-  // Warna margin
   const getMarginColor = () => {
     if (margin >= 50) return 'bg-green-100 text-green-700 border-green-200';
     if (margin >= 30) return 'bg-blue-100 text-blue-700 border-blue-200';
@@ -60,12 +49,21 @@ export default function MenuCard({ menu }: { menu: Menu }) {
             <h3 className="text-lg font-bold text-pink-600">{menu.name}</h3>
           </div>
           <div className="flex gap-2 ml-2">
+            <button
+              onClick={() => setIsDetailOpen(true)}
+              className="p-2 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+              title="Detail Menu"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+
             <Link
               href={`/dashboard/menu/${menu.id}/edit`}
               className="p-2 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors"
             >
               <Pencil className="w-4 h-4" />
             </Link>
+
             <button
               onClick={handleDeleteClick}
               className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
@@ -97,19 +95,14 @@ export default function MenuCard({ menu }: { menu: Menu }) {
 
         {/* Pricing Info */}
         <div className="space-y-2 mb-4">
-          {/* HPP */}
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-500">HPP</span>
             <span className="font-semibold text-gray-700">{formatCurrency(hpp)}</span>
           </div>
-
-          {/* Harga Jual */}
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-500">Harga Jual</span>
             <span className="text-lg font-bold text-gray-900">{formatCurrency(price)}</span>
           </div>
-
-          {/* Profit */}
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-500">Profit</span>
             <span className="font-semibold text-green-600">+{formatCurrency(profit)}</span>
@@ -118,17 +111,11 @@ export default function MenuCard({ menu }: { menu: Menu }) {
 
         {/* Margin & Terjual */}
         <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-          {/* Margin Badge */}
           <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border ${getMarginColor()}`}>
-            {margin >= 0 ? (
-              <TrendingUp className="w-3 h-3" />
-            ) : (
-              <TrendingDown className="w-3 h-3" />
-            )}
+            {margin >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
             Margin {margin.toFixed(1)}%
           </div>
 
-          {/* Sold Count */}
           <div className="flex items-center gap-1.5 text-xs text-gray-600">
             <ShoppingBag className="w-4 h-4" />
             <span className="font-semibold">{menu.sold_count}</span>
@@ -144,14 +131,12 @@ export default function MenuCard({ menu }: { menu: Menu }) {
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
               <AlertTriangle className="h-6 w-6 text-red-600" />
             </div>
-
             <div className="text-center">
               <h3 className="text-lg font-bold text-gray-900">Hapus Menu?</h3>
               <p className="mt-2 text-sm text-gray-500">
                 Menu "{menu.name}" akan dihapus. Tindakan ini tidak dapat dibatalkan.
               </p>
             </div>
-
             <div className="mt-6 flex justify-center gap-3">
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -160,7 +145,6 @@ export default function MenuCard({ menu }: { menu: Menu }) {
               >
                 Batal
               </button>
-
               <button
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
@@ -179,6 +163,9 @@ export default function MenuCard({ menu }: { menu: Menu }) {
           </div>
         </div>
       )}
+
+      {/* MODAL DETAIL */}
+      {isDetailOpen && <MenuDetailModal menu={menu} onClose={() => setIsDetailOpen(false)} />}
     </>
   );
 }
