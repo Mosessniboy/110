@@ -26,7 +26,7 @@ export default function DashboardClient() {
   const { data, isFetching, isError, error, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: fetchDashboard,
-    refetchInterval: 5000, // 5 detik
+    refetchInterval: 10000, // 5 detik
     refetchIntervalInBackground: true,
     staleTime: 0, // ✅ Data selalu dianggap stale
     gcTime: 0, // ✅ Tidak cache di memory (previously cacheTime)
@@ -66,7 +66,7 @@ export default function DashboardClient() {
         <div>
           <h1 className="text-2xl font-bold text-pink-600">Dashboard Overview</h1>
           <p className="text-sm text-gray-500">
-            Pantau Performa Bisnis BABIPEDIA Minggu Ini
+            Pantau Performa Bisnis 110 Coffee Minggu Ini
           </p>
         </div>
 

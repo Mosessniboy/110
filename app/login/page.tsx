@@ -42,10 +42,10 @@ export default function LoginPage() {
         </div>
 
         <h1 className="text-3xl md:text-4xl font-extrabold text-pink-600">
-          Sistem Manajemen BABIPEDIA
+          Sistem Manajemen 110 Coffee
         </h1>
         <p className="text-gray-600 mt-2">
-          ALL ABOUT PORK!
+          Cuan Cuann!
         </p>
       </div>
 

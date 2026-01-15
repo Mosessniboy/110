@@ -26,8 +26,8 @@ export default async function TopNav() {
             </div>
 
             <div className="hidden md:block">
-              <strong className="text-lg">BABIPEDIA</strong>
-              <span className="text-xs opacity-90 block mt-1">All about Pork!</span>
+              <strong className="text-lg">110 Coffee</strong>
+              <span className="text-xs opacity-90 block mt-1">Cuan Cuann!</span>
             </div>
           </Link>
 

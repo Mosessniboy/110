@@ -839,3 +839,338 @@ export async function fetchCustomerById(id: string): Promise<Customer> {
     total_spent: result[0].total_spent,
   };
 }
+
+// Tambahkan fungsi-fungsi ini ke data.ts Anda
+
+// ============================================
+// 1. PROFIT BULANAN (Revenue - HPP per bulan)
+// ============================================
+export async function fetchMonthlyProfitData(year: number) {
+  console.log('🔍 [fetchMonthlyProfitData] Year:', year);
+  noStore();
+  try {
+    const data = await sql<{ 
+      month: number; 
+      revenue: number; 
+      hpp: number;
+      transactions: number;
+    }[]>`
+      SELECT 
+        EXTRACT(MONTH FROM t.created_at) as month,
+        SUM(t.total_amount) as revenue,
+        SUM(
+          (SELECT SUM(ti2.quantity * COALESCE(m2.hpp, 0))
+           FROM transaction_items ti2
+           JOIN menus m2 ON ti2.menu_id = m2.id
+           WHERE ti2.transaction_id = t.id)
+        ) as hpp,
+        COUNT(DISTINCT t.id) as transactions
+      FROM transactions t
+      WHERE EXTRACT(YEAR FROM t.created_at) = ${year}
+      GROUP BY month
+      ORDER BY month ASC
+    `;
+    console.log('📊 [fetchMonthlyProfitData] Result:', data);
+
+    const chartData = Array.from({ length: 12 }, (_, i) => {
+      const monthData = data.find((d) => Number(d.month) === i + 1);
+      const revenue = monthData ? Number(monthData.revenue) : 0;
+      const hpp = monthData ? Number(monthData.hpp) : 0;
+      const profit = revenue - hpp;
+      const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+
+      return {
+        name: new Date(0, i).toLocaleString('id-ID', { month: 'short' }),
+        revenue,
+        hpp,
+        profit,
+        margin,
+        transactions: monthData ? Number(monthData.transactions) : 0,
+      };
+    });
+
+    return chartData;
+  } catch (error) {
+    console.error('Database Error:', error);
+    return [];
+  }
+}
+// ============================================
+// 2. ANALISIS MENU (Best Seller vs Best Margin)
+// ============================================
+export async function fetchMenuAnalysis(year: number) {
+  noStore();
+  try {
+    const data = await sql<{
+      menu_id: string;
+      menu_name: string;
+      total_sold: number;
+      revenue: number;
+      total_hpp: number;
+      avg_price: number;
+    }[]>`
+      SELECT 
+        m.id as menu_id,
+        m.name as menu_name,
+        SUM(ti.quantity) as total_sold,
+        SUM(ti.subtotal) as revenue,
+        SUM(ti.quantity * COALESCE(m.hpp, 0)) as total_hpp,
+        AVG(ti.price_at_time) as avg_price
+      FROM transaction_items ti
+      JOIN menus m ON ti.menu_id = m.id
+      JOIN transactions t ON ti.transaction_id = t.id
+      WHERE 
+        EXTRACT(YEAR FROM t.created_at) = ${year}
+        AND m.is_deleted = FALSE
+      GROUP BY m.id, m.name
+      HAVING SUM(ti.quantity) > 0
+      ORDER BY total_sold DESC
+    `;
+
+    return data.map(item => {
+      const revenue = Number(item.revenue);
+      const hpp = Number(item.total_hpp);
+      const profit = revenue - hpp;
+      const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+
+      return {
+        name: item.menu_name,
+        sold: Number(item.total_sold),
+        revenue,
+        profit,
+        margin,
+        avgPrice: Number(item.avg_price),
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching menu analysis:', error);
+    return [];
+  }
+}
+
+
+// ============================================
+// 3. ANALISIS WAKTU RAMAI (Peak Hours)
+// ============================================
+export async function fetchPeakHoursData(year: number, month?: number) {
+  noStore();
+  try {
+    let dateFilter = sql`EXTRACT(YEAR FROM created_at) = ${year}`;
+    
+    if (month) {
+      dateFilter = sql`
+        EXTRACT(YEAR FROM created_at) = ${year} 
+        AND EXTRACT(MONTH FROM created_at) = ${month}
+      `;
+    }
+
+    const data = await sql<{ 
+      hour: number; 
+      transactions: number; 
+      revenue: number;
+    }[]>`
+      SELECT 
+        EXTRACT(HOUR FROM created_at) as hour,
+        COUNT(id) as transactions,
+        SUM(total_amount) as revenue
+      FROM transactions
+      WHERE ${dateFilter}
+      GROUP BY hour
+      ORDER BY hour ASC
+    `;
+
+    return Array.from({ length: 24 }, (_, i) => {
+      const hourData = data.find(d => Number(d.hour) === i);
+      return {
+        hour: `${i.toString().padStart(2, '0')}:00`,
+        transactions: hourData ? Number(hourData.transactions) : 0,
+        revenue: hourData ? Number(hourData.revenue) : 0,
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching peak hours:', error);
+    return [];
+  }
+}
+
+// ============================================
+// 4. CUSTOMER RETENTION & AOV
+// ============================================
+export async function fetchCustomerMetrics(year: number) {
+  noStore();
+  try {
+    // Customer yang transaksi di tahun ini
+    const currentCustomers = await sql<{ customer_id: string }[]>`
+      SELECT DISTINCT customer_id
+      FROM transactions
+      WHERE 
+        EXTRACT(YEAR FROM created_at) = ${year}
+        AND customer_id IS NOT NULL
+    `;
+
+    // Customer yang juga transaksi tahun lalu
+    const prevYear = year - 1;
+    const returningCustomers = await sql<{ customer_id: string }[]>`
+      SELECT DISTINCT t1.customer_id
+      FROM transactions t1
+      WHERE 
+        EXTRACT(YEAR FROM t1.created_at) = ${year}
+        AND t1.customer_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM transactions t2
+          WHERE t2.customer_id = t1.customer_id
+          AND EXTRACT(YEAR FROM t2.created_at) = ${prevYear}
+        )
+    `;
+
+    const retentionRate = currentCustomers.length > 0
+      ? (returningCustomers.length / currentCustomers.length) * 100
+      : 0;
+
+    // Average Order Value per bulan
+    const aovData = await sql<{ 
+      month: number; 
+      avg_order: number;
+      total_orders: number;
+    }[]>`
+      SELECT 
+        EXTRACT(MONTH FROM created_at) as month,
+        AVG(total_amount) as avg_order,
+        COUNT(id) as total_orders
+      FROM transactions
+      WHERE EXTRACT(YEAR FROM created_at) = ${year}
+      GROUP BY month
+      ORDER BY month ASC
+    `;
+
+    const monthlyAOV = Array.from({ length: 12 }, (_, i) => {
+      const monthData = aovData.find(d => Number(d.month) === i + 1);
+      return {
+        name: new Date(0, i).toLocaleString('id-ID', { month: 'short' }),
+        aov: monthData ? Number(monthData.avg_order) : 0,
+        orders: monthData ? Number(monthData.total_orders) : 0,
+      };
+    });
+
+    return {
+      retentionRate,
+      totalCustomers: currentCustomers.length,
+      returningCustomers: returningCustomers.length,
+      newCustomers: currentCustomers.length - returningCustomers.length,
+      monthlyAOV,
+    };
+  } catch (error) {
+    console.error('Error fetching customer metrics:', error);
+    return {
+      retentionRate: 0,
+      totalCustomers: 0,
+      returningCustomers: 0,
+      newCustomers: 0,
+      monthlyAOV: [],
+    };
+  }
+}
+
+// ============================================
+// 5. TOP SELLING ITEMS BY TIME PERIOD
+// ============================================
+export async function fetchTopSellingByPeriod(
+  year: number, 
+  period: 'daily' | 'weekly' | 'monthly' = 'monthly'
+) {
+  noStore();
+  try {
+    let groupBy = sql``;
+    
+    switch (period) {
+      case 'daily':
+        groupBy = sql`DATE(t.created_at)`;
+        break;
+      case 'weekly':
+        groupBy = sql`DATE_TRUNC('week', t.created_at)`;
+        break;
+      case 'monthly':
+      default:
+        groupBy = sql`EXTRACT(MONTH FROM t.created_at)`;
+        break;
+    }
+
+    const data = await sql`
+      SELECT 
+        ${groupBy} as period,
+        m.name as menu_name,
+        SUM(ti.quantity) as total_sold,
+        SUM(ti.subtotal) as revenue
+      FROM transaction_items ti
+      JOIN menus m ON ti.menu_id = m.id
+      JOIN transactions t ON ti.transaction_id = t.id
+      WHERE EXTRACT(YEAR FROM t.created_at) = ${year}
+      GROUP BY period, m.name
+      ORDER BY period, total_sold DESC
+    `;
+
+    return data;
+  } catch (error) {
+    console.error('Error:', error);
+    return [];
+  }
+}
+
+export async function fetchStockUsageAnalysis(year: number, month?: number) {
+  noStore();
+  try {
+    let dateFilter = sql`EXTRACT(YEAR FROM t.created_at) = ${year}`;
+    
+    if (month) {
+      dateFilter = sql`
+        EXTRACT(YEAR FROM t.created_at) = ${year} 
+        AND EXTRACT(MONTH FROM t.created_at) = ${month}
+      `;
+    }
+
+    const data = await sql<{
+      stock_id: string;
+      stock_name: string;
+      unit: string;
+      total_used: number;
+      total_cost: number;
+      times_used: number;
+      current_stock: number;
+      min_stock: number;
+    }[]>`
+      SELECT 
+        s.id as stock_id,
+        s.name as stock_name,
+        s.unit,
+        SUM(mr.amount_needed * ti.quantity) as total_used,
+        SUM(mr.amount_needed * ti.quantity * s.cost_per_unit) as total_cost,
+        COUNT(DISTINCT t.id) as times_used,
+        s.stock as current_stock,
+        s.min_stock
+      FROM stocks s
+      JOIN menu_recipes mr ON s.id = mr.stock_id
+      JOIN transaction_items ti ON mr.menu_id = ti.menu_id
+      JOIN transactions t ON ti.transaction_id = t.id
+      WHERE ${dateFilter}
+      GROUP BY s.id, s.name, s.unit, s.stock, s.min_stock
+      ORDER BY total_cost DESC
+    `;
+
+    return data.map(item => ({
+      name: item.stock_name,
+      unit: item.unit,
+      totalUsed: Number(item.total_used),
+      totalCost: Number(item.total_cost),
+      timesUsed: Number(item.times_used),
+      currentStock: Number(item.current_stock),
+      minStock: Number(item.min_stock),
+      stockStatus: getStockStatus(
+        Number(item.current_stock), 
+        Number(item.min_stock)
+      ),
+    }));
+  } catch (error) {
+    console.error('Error fetching stock usage:', error);
+    return [];
+  }
+}
