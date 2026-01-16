@@ -1,5 +1,5 @@
 // import postgres from 'postgres';
-import { Customer, Stock, Menu, Transaction, TransactionItem } from '@/app/lib/definitions';
+import { Customer, Stock, Menu, Transaction, TransactionItem,Expense } from '@/app/lib/definitions';
 import { getCustomerStatus, getStockStatus } from './utils';
 import { unstable_noStore as noStore } from 'next/cache';
 import sql from './db';
@@ -957,30 +957,20 @@ export async function fetchMenuAnalysis(year: number) {
 export async function fetchPeakHoursData(year: number, month?: number) {
   noStore();
   try {
-    let dateFilter = sql`EXTRACT(YEAR FROM created_at) = ${year}`;
-    
-    if (month) {
-      dateFilter = sql`
-        EXTRACT(YEAR FROM created_at) = ${year} 
-        AND EXTRACT(MONTH FROM created_at) = ${month}
-      `;
-    }
-
-    const data = await sql<{ 
-      hour: number; 
-      transactions: number; 
-      revenue: number;
-    }[]>`
+    // Ambil data transaksi, langsung pakai jam lokal dari created_at
+    const data = await sql<{ hour: number; transactions: number; revenue: number }[]>`
       SELECT 
-        EXTRACT(HOUR FROM created_at) as hour,
-        COUNT(id) as transactions,
-        SUM(total_amount) as revenue
+        EXTRACT(HOUR FROM created_at) AS hour,
+        COUNT(id) AS transactions,
+        SUM(total_amount) AS revenue
       FROM transactions
-      WHERE ${dateFilter}
+      WHERE EXTRACT(YEAR FROM created_at) = ${year}
+        ${month ? sql`AND EXTRACT(MONTH FROM created_at) = ${month}` : sql``}
       GROUP BY hour
       ORDER BY hour ASC
     `;
 
+    // Buat array 24 jam untuk chart, isi 0 kalau tidak ada transaksi
     return Array.from({ length: 24 }, (_, i) => {
       const hourData = data.find(d => Number(d.hour) === i);
       return {
@@ -1173,6 +1163,147 @@ export async function fetchStockUsageAnalysis(year: number, month?: number) {
     }));
   } catch (error) {
     console.error('Error fetching stock usage:', error);
+    return [];
+  }
+}
+
+
+
+//------------------------------------------------------------------------------------//
+//-------------------------------- Expense DATA FETCHING -----------------------------//
+//------------------------------------------------------------------------------------//
+
+export async function fetchExpenses(query: string = '', category: string = '') {
+  noStore();
+  try {
+    let categoryFilter = sql``;
+    
+    if (category && category !== 'all') {
+      categoryFilter = sql`AND category = ${category}`;
+    }
+
+    const data = await sql<Expense[]>`
+      SELECT 
+        id,
+        category,
+        amount,
+        description,
+        payment_method,
+        expense_date,
+        created_at
+      FROM expenses
+      WHERE 
+        (description ILIKE ${`%${query}%`} OR category ILIKE ${`%${query}%`})
+        ${categoryFilter}
+      ORDER BY expense_date DESC, created_at DESC
+    `;
+
+    return data;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch expenses.');
+  }
+}
+
+export async function fetchExpenseById(id: string) {
+  noStore();
+  try {
+    const data = await sql<Expense[]>`
+      SELECT * FROM expenses WHERE id = ${id}
+    `;
+
+    if (data.length === 0) {
+      return null;
+    }
+
+    return data[0];
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch expense.');
+  }
+}
+
+export async function fetchExpenseSummary(year?: number, month?: number) {
+  noStore();
+  try {
+    const currentYear = year || new Date().getFullYear();
+    const currentMonth = month || new Date().getMonth() + 1;
+    
+    let dateFilter = sql`
+      EXTRACT(YEAR FROM expense_date) = ${currentYear} 
+      AND EXTRACT(MONTH FROM expense_date) = ${currentMonth}
+    `;
+
+    const total = await sql`
+      SELECT SUM(amount) as total FROM expenses WHERE ${dateFilter}
+    `;
+
+    const byCategory = await sql`
+      SELECT 
+        category,
+        SUM(amount) as total,
+        COUNT(*) as count
+      FROM expenses
+      WHERE ${dateFilter}
+      GROUP BY category
+      ORDER BY total DESC
+    `;
+
+    const count = await sql`
+      SELECT COUNT(*) as count FROM expenses WHERE ${dateFilter}
+    `;
+
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+
+    return {
+      total: Number(total[0]?.total || 0),
+      count: Number(count[0]?.count || 0),
+      avgPerDay: Number(total[0]?.total || 0) / daysInMonth,
+      topCategory: byCategory[0]?.category || '-',
+      topCategoryAmount: Number(byCategory[0]?.total || 0),
+      byCategory: byCategory.map(c => ({
+        category: c.category,
+        total: Number(c.total),
+        count: Number(c.count),
+      })),
+    };
+  } catch (error) {
+    console.error('Database Error:', error);
+    return {
+      total: 0,
+      count: 0,
+      avgPerDay: 0,
+      topCategory: '-',
+      topCategoryAmount: 0,
+      byCategory: [],
+    };
+  }
+}
+
+export async function fetchMonthlyExpenseData(year: number) {
+  noStore();
+  try {
+    const data = await sql<{ month: number; total: number }[]>`
+      SELECT 
+        EXTRACT(MONTH FROM expense_date) as month,
+        SUM(amount) as total
+      FROM expenses
+      WHERE EXTRACT(YEAR FROM expense_date) = ${year}
+      GROUP BY month
+      ORDER BY month ASC
+    `;
+
+    const chartData = Array.from({ length: 12 }, (_, i) => {
+      const monthData = data.find((d) => Number(d.month) === i + 1);
+      return {
+        name: new Date(0, i).toLocaleString('id-ID', { month: 'short' }),
+        total: monthData ? Number(monthData.total) : 0,
+      };
+    });
+
+    return chartData;
+  } catch (error) {
+    console.error('Database Error:', error);
     return [];
   }
 }

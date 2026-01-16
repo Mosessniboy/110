@@ -7,6 +7,7 @@ import {
   DocumentDuplicateIcon,
   CurrencyDollarIcon,
   ArchiveBoxIcon,
+  BanknotesIcon, // ← Import icon untuk Pengeluaran
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,6 +20,7 @@ const links = [
   { name: "Stok Bahan", href: "/dashboard/stok", icon: ArchiveBoxIcon },
   { name: "Menu", href: "/dashboard/menu", icon: InboxIcon },
   { name: "Transaksi", href: "/dashboard/transaksi", icon: CurrencyDollarIcon },
+  { name: "Pengeluaran", href: "/dashboard/pengeluaran", icon: BanknotesIcon }, // ← Tambahkan ini
   { name: "Laporan", href: "/dashboard/laporan", icon: DocumentDuplicateIcon },
 ];
 

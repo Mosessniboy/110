@@ -1,5 +1,6 @@
 // app/dashboard/laporan/page.tsx
 // ✅ FIXED: Proper async searchParams handling for Next.js 15
+import { fetchExpenseSummary } from '@/app/lib/data';
 
 import { 
   fetchReportSummary, 

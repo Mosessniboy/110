@@ -600,7 +600,7 @@ export async function createTransaction(prevState: any, formData: FormData) {
           ${rawData.ongkir},
           ${rawData.discountPercentage},
           ${rawData.discountAmount},
-          NOW()
+          CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta'
         )
       `;
 
@@ -904,6 +904,170 @@ export async function deleteTransaction(id: string) {
   revalidatePath('/dashboard/stok');
   revalidatePath('/dashboard/menu');
   revalidatePath('/dashboard/pelanggan');
+}
+
+
+
+
+//--------------------------------------------
+// Expense Actions
+//--------------------------------------------
+
+const ExpenseSchema = z.object({
+  category: z.string().min(1, { message: 'Kategori wajib diisi' }),
+  amount: z.coerce.number().min(0, { message: 'Jumlah tidak boleh negatif' }),
+  description: z.string().optional(),
+  payment_method: z.string().optional(),
+  expense_date: z.string().min(1, { message: 'Tanggal wajib diisi' }),
+});
+
+export type ExpenseState = {
+  errors?: {
+    category?: string[];
+    amount?: string[];
+    expense_date?: string[];
+  };
+  message?: string | null;
+  values?: {
+    category?: string;
+    amount?: number;
+    description?: string;
+    payment_method?: string;
+    expense_date?: string;
+  };
+};
+
+export async function createExpense(
+  prevState: ExpenseState,
+  formData: FormData
+): Promise<ExpenseState> {
+  const rawData = {
+    category: formData.get('category'),
+    amount: formData.get('amount'),
+    description: formData.get('description') || '',
+    payment_method: formData.get('payment_method') || '',
+    expense_date: formData.get('expense_date'), // format: YYYY-MM-DD
+  };
+
+  const validated = ExpenseSchema.safeParse(rawData);
+
+  if (!validated.success) {
+    return {
+      errors: validated.error.flatten().fieldErrors,
+      message: 'Gagal menyimpan. Periksa input Anda.',
+      values: {
+        category: rawData.category as string,
+        amount: rawData.amount ? Number(rawData.amount) : undefined,
+        description: rawData.description as string,
+        payment_method: rawData.payment_method as string,
+        expense_date: rawData.expense_date as string,
+      },
+    };
+  }
+
+  const { category, amount, expense_date } = validated.data;
+
+  const description = validated.data.description || '';
+  const payment_method = validated.data.payment_method || '';
+
+  const expenseId = `EXP-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+  try {
+    await sql`
+      INSERT INTO expenses (
+        id,
+        category,
+        amount,
+        description,
+        payment_method,
+        expense_date,
+        created_at
+      )
+      VALUES (
+        ${expenseId},
+        ${category},
+        ${amount},
+        ${description},
+        ${payment_method},
+        (${expense_date}::date + time '00:00') AT TIME ZONE 'Asia/Jakarta',
+        CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Jakarta'
+      )
+    `;
+  } catch (error) {
+    console.error('Database Error:', error);
+    return {
+      message: 'Database Error: Gagal menyimpan pengeluaran.',
+      values: validated.data,
+    };
+  }
+
+  revalidatePath('/dashboard/pengeluaran');
+  redirect('/dashboard/pengeluaran');
+}
+
+export async function updateExpense(id: string, prevState: ExpenseState, formData: FormData): Promise<ExpenseState> {
+  const rawData = {
+    category: formData.get('category'),
+    amount: formData.get('amount'),
+    description: formData.get('description') || '',
+    payment_method: formData.get('payment_method') || '',
+    expense_date: formData.get('expense_date'),
+  };
+
+  const validated = ExpenseSchema.safeParse(rawData);
+  
+  if (!validated.success) {
+    return {
+      errors: validated.error.flatten().fieldErrors,
+      message: 'Gagal mengupdate. Periksa input Anda.',
+      values: {
+        category: rawData.category as string,
+        amount: rawData.amount ? Number(rawData.amount) : undefined,
+        description: rawData.description as string,
+        payment_method: rawData.payment_method as string,
+        expense_date: rawData.expense_date as string,
+      },
+    };
+  }
+
+  const { category, amount, expense_date } = validated.data;
+  
+  // ✅ FIX: Berikan default value untuk optional fields
+  const description = validated.data.description || '';
+  const payment_method = validated.data.payment_method || '';
+
+  try {
+    await sql`
+      UPDATE expenses
+      SET
+        category = ${category},
+        amount = ${amount},
+        description = ${description},
+        payment_method = ${payment_method},
+        expense_date = ${expense_date}
+      WHERE id = ${id}
+    `;
+  } catch (error) {
+    console.error('Database Error:', error);
+    return {
+      message: 'Database Error: Gagal mengupdate pengeluaran.',
+      values: validated.data,
+    };
+  }
+
+  revalidatePath('/dashboard/pengeluaran');
+  redirect('/dashboard/pengeluaran');
+}
+
+export async function deleteExpense(id: string) {
+  try {
+    await sql`DELETE FROM expenses WHERE id = ${id}`;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Gagal menghapus pengeluaran.');
+  }
+
+  revalidatePath('/dashboard/pengeluaran');
 }
 
 

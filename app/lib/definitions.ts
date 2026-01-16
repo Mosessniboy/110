@@ -88,3 +88,38 @@ export type CardProps = {
   growth: number;
   icon: LucideIcon; 
 };
+
+// Tambahkan di app/lib/definitions.ts
+
+export type Expense = {
+  id: string;
+  category: string;
+  amount: number;
+  description?: string;
+  payment_method?: string;
+  expense_date: string;
+  created_at: string;
+};
+
+export const EXPENSE_CATEGORIES = [
+  '🔌 Listrik',
+  '💧 Air',
+  '📱 Internet/Telepon',
+  '🏠 Sewa Tempat',
+  '👤 Gaji Karyawan',
+  '🛍️ Belanja Bahan Baku',
+  '🚚 Transportasi/Bensin',
+  '🧹 Kebersihan',
+  '📦 Kemasan',
+  '📝 ATK',
+  '🎯 Marketing',
+  '🔧 Perbaikan',
+  '💳 Lain-lain',
+] as const;
+
+export const PAYMENT_METHODS = [
+  '💵 Cash',
+  '💳 Transfer',
+  '🏦 Debit',
+  '💰 E-wallet',
+] as const;
