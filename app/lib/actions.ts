@@ -429,7 +429,7 @@ export async function createMenu(prevState: any, formData: FormData) {
 
     // ✅ 2. Insert Menu dengan HPP
     const menuResult = await sql`
-      INSERT INTO menus (name, description, price, hpp, sold_count, is_deleted)
+      INSERT INTO menus (name, description, price, hpp, sold_count, is_deleted,)
       VALUES (${name}, ${description}, ${price}, ${hpp}, 0, FALSE)
       RETURNING id
     `;
@@ -504,6 +504,8 @@ export async function updateMenu(id: string, prevState: any, formData: FormData)
   revalidatePath('/dashboard/menu');
   redirect('/dashboard/menu');
 }
+
+
 
 export async function deleteMenu(id: string) {
   await sql`UPDATE menus SET is_deleted = TRUE WHERE id = ${id}`;

@@ -174,7 +174,8 @@ export async function fetchMenus(query: string = '') {
             json_build_object(
               'stock_name', s.name, 
               'unit', s.unit, 
-              'amount_needed', mr.amount_needed
+              'amount_needed', mr.amount_needed,
+              'cost_per_unit', s.cost_per_unit
             )
           ) FILTER (WHERE s.id IS NOT NULL), 
           '[]'
@@ -246,7 +247,8 @@ export async function fetchMenuById(id: string) {
               'stock_id', s.id,
               'stock_name', s.name, 
               'unit', s.unit, 
-              'amount_needed', mr.amount_needed
+              'amount_needed', mr.amount_needed,
+              'cost_per_unit', s.cost_per_unit
             )
           ) FILTER (WHERE s.id IS NOT NULL), 
           '[]'

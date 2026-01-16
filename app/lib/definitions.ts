@@ -35,6 +35,7 @@ export type RecipeItem = {
   unit: string;
   amount_needed: number;
   hpp?: number;
+  cost_per_unit?: number;
 };
 
 export type Menu = {
