@@ -4,7 +4,7 @@ import { Customer, Menu, Transaction } from '@/app/lib/definitions';
 import { updateTransaction, TransactionState } from '@/app/lib/actions';
 import { useActionState, useState, useEffect, useMemo } from 'react';
 import { formatCurrency } from '@/app/lib/utils';
-import { Minus, Plus, Trash2, Percent, Truck } from 'lucide-react';
+import { Minus, Plus, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 type CartItem = {
@@ -26,12 +26,6 @@ export default function EditTransactionForm({
   const initialState: TransactionState = { message: null, errors: {} };
   const updateTxWithId = updateTransaction.bind(null, transaction.id);
   const [state, formAction] = useActionState(updateTxWithId, initialState);
-
-  const [useDiscount, setUseDiscount] = useState(
-    (transaction.discount_percentage || 0) > 0
-  );
-
-  const [ongkir, setOngkir] = useState(String(transaction.ongkir || 0));
 
   const [cart, setCart] = useState<CartItem[]>([]);
 
@@ -58,21 +52,11 @@ export default function EditTransactionForm({
     setCart(updatedCart);
   }, [transaction.items, menus]);
 
-  const { subTotal, ongkirAmount, discountAmount, grandTotal } = useMemo(() => {
-    const sub = cart.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
-    const ongkirNum = parseInt(ongkir) || 0;
-    const disc = useDiscount ? sub * 0.05 : 0;
+  const subTotal = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  }, [cart]);
 
-    return {
-      subTotal: sub,
-      ongkirAmount: ongkirNum,
-      discountAmount: disc,
-      grandTotal: sub + ongkirNum - disc,
-    };
-  }, [cart, ongkir, useDiscount]);
+  const grandTotal = subTotal;
 
   const addToCart = (menu: Menu) => {
     setCart((prev) => {
@@ -105,10 +89,6 @@ export default function EditTransactionForm({
 
   const removeFromCart = (id: string) => {
     setCart((prev) => prev.filter((item) => item.id !== id));
-  };
-
-  const handleOngkirChange = (value: string) => {
-    setOngkir(value.replace(/[^0-9]/g, ''));
   };
 
   return (
@@ -216,46 +196,6 @@ export default function EditTransactionForm({
         )}
       </div>
 
-      {/* Ongkir */}
-      {cart.length > 0 && (
-        <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Truck className="h-5 w-5 text-blue-600" />
-            <span className="font-semibold">Ongkos Kirim</span>
-          </div>
-
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm">
-              Rp
-            </span>
-            <input
-              type="text"
-              value={ongkir}
-              onChange={(e) => handleOngkirChange(e.target.value)}
-              className="w-full rounded-lg border-2 border-blue-200 py-2 pl-9 pr-4"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Diskon */}
-      {cart.length > 0 && (
-        <label className="flex cursor-pointer items-center gap-3 rounded-lg border-2 border-pink-200 bg-pink-50 p-4">
-          <input
-            type="checkbox"
-            checked={useDiscount}
-            onChange={(e) => setUseDiscount(e.target.checked)}
-          />
-          <Percent className="h-5 w-5 text-pink-600" />
-          <span className="flex-1 font-semibold">Diskon 5%</span>
-          {useDiscount && (
-            <span className="font-bold text-pink-600">
-              -{formatCurrency(discountAmount)}
-            </span>
-          )}
-        </label>
-      )}
-
       {/* Summary */}
       <div className="rounded-lg bg-pink-100 p-4 space-y-2">
         <div className="flex justify-between">
@@ -263,38 +203,15 @@ export default function EditTransactionForm({
           <span>{formatCurrency(subTotal)}</span>
         </div>
 
-        {ongkirAmount > 0 && (
-          <div className="flex justify-between text-blue-600">
-            <span>Ongkir</span>
-            <span>+{formatCurrency(ongkirAmount)}</span>
-          </div>
-        )}
-
-        {useDiscount && (
-          <div className="flex justify-between text-pink-600">
-            <span>Diskon</span>
-            <span>-{formatCurrency(discountAmount)}</span>
-          </div>
-        )}
-
         <div className="border-t pt-2 flex justify-between font-bold text-lg">
           <span>Total</span>
-          <span className="text-pink-600">
-            {formatCurrency(grandTotal)}
-          </span>
+          <span className="text-pink-600">{formatCurrency(grandTotal)}</span>
         </div>
       </div>
 
       {/* Hidden */}
       <input type="hidden" name="items" value={JSON.stringify(cart)} />
       <input type="hidden" name="totalAmount" value={grandTotal} />
-      <input type="hidden" name="ongkir" value={ongkirAmount} />
-      <input
-        type="hidden"
-        name="discountPercentage"
-        value={useDiscount ? 5 : 0}
-      />
-      <input type="hidden" name="discountAmount" value={discountAmount} />
 
       {/* Action */}
       <div className="flex gap-3">
