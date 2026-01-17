@@ -85,15 +85,6 @@ export default function ExpenseTable({ expenses }: { expenses: Expense[] }) {
         </table>
       </div>
 
-      {/* Summary Footer */}
-      <div className="bg-pink-50 px-6 py-4 border-t border-pink-100">
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-gray-700">Total Pengeluaran:</span>
-          <span className="text-xl font-bold text-pink-600">
-            {formatCurrency(expenses.reduce((sum, e) => sum + e.amount, 0))}
-          </span>
-        </div>
-      </div>
     </div>
   );
 }
