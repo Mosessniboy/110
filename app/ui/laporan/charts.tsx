@@ -325,3 +325,8 @@ export function TransactionChart({ data }: { data: any[] }) {
     </div>
   );
 }
+
+// Di bagian export, tambahkan:
+
+export { CashFlowChart, CashFlowBarChart } from './cashflow-chart';
+export { default as ExpenseBreakdownCard } from './expense-breakdown';

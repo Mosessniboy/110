@@ -10,10 +10,11 @@ import {
   TrendingDown, 
   Minus, 
   LucideIcon,
-  DollarSign  // Icon untuk Net Profit
+  DollarSign,
+  TrendingDown as ExpenseIcon,
+  Wallet
 } from 'lucide-react';
 
-// ✅ Updated: Tambah Net Profit & Margin
 type SummaryData = {
     totalRevenue: number;
     revenueGrowth: number;
@@ -23,9 +24,14 @@ type SummaryData = {
     customerGrowth: number;
     avgTransaction: number;
     avgGrowth: number;
-    netProfit: number;           // ✅ NEW
-    profitGrowth: number;        // ✅ NEW
-    profitMargin: number;        // ✅ NEW (dalam %)
+    grossProfit: number;
+    grossProfitGrowth: number;
+    profitMargin: number;
+    totalExpense: number;
+    expenseGrowth: number;
+    netIncome: number;
+    netIncomeGrowth: number;
+    netMargin: number;
 };
 
 interface CardProps {
@@ -33,7 +39,8 @@ interface CardProps {
   value: string;
   growth: number;
   icon: LucideIcon;
-  subtitle?: string;  // ✅ NEW: untuk info tambahan seperti margin %
+  subtitle?: string;
+  colorClass?: string;
 }
 
 export default function SummaryCards({ data }: { data: SummaryData }) {
@@ -44,95 +51,129 @@ export default function SummaryCards({ data }: { data: SummaryData }) {
                 <h2 className="text-lg font-bold text-pink-600">Ringkasan Performa</h2>
             </div>
 
-            {/* ✅ Grid 5 cards (atau bisa 2 baris: 3 atas, 2 bawah) */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-
+            {/* ✅ Improved Grid Layout */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 {/* Card 1: Total Revenue */}
                 <Card
                     title="Total Pendapatan"
                     value={formatCurrency(data.totalRevenue)}
                     growth={data.revenueGrowth}
                     icon={Banknote}
+                    colorClass="text-green-600"
                 />
 
-                {/* ✅ Card 2: NET PROFIT (NEW!) */}
+                {/* Card 2: Gross Profit */}
                 <Card
-                    title="Profit Bersih"
-                    value={formatCurrency(data.netProfit)}
-                    growth={data.profitGrowth}
+                    title="Gross Profit"
+                    value={formatCurrency(data.grossProfit)}
+                    growth={data.grossProfitGrowth}
                     icon={DollarSign}
                     subtitle={`Margin: ${data.profitMargin.toFixed(1)}%`}
+                    colorClass="text-blue-600"
                 />
 
-                {/* Card 3: Total Transactions */}
+                {/* Card 3: Total Pengeluaran */}
+                <Card
+                    title="Total Pengeluaran"
+                    value={formatCurrency(data.totalExpense)}
+                    growth={data.expenseGrowth}
+                    icon={ExpenseIcon}
+                    colorClass="text-red-600"
+                />
+
+                {/* Card 4: Net Income */}
+                <Card
+                    title="Net Income"
+                    value={formatCurrency(data.netIncome)}
+                    growth={data.netIncomeGrowth}
+                    icon={Wallet}
+                    subtitle={`Net Margin: ${data.netMargin.toFixed(1)}%`}
+                    colorClass="text-pink-600"
+                />
+
+                {/* Card 5: Total Transactions */}
                 <Card
                     title="Total Transaksi"
-                    value={`${data.totalTransactions} Transaksi`}
+                    value={`${data.totalTransactions}`}
                     growth={data.transactionGrowth}
                     icon={ShoppingBag}
+                    colorClass="text-purple-600"
                 />
 
-                {/* Card 4: Active Customers */}
+                {/* Card 6: Active Customers */}
                 <Card
                     title="Pelanggan Aktif"
-                    value={`${data.totalCustomers} Pelanggan`}
+                    value={`${data.totalCustomers}`}
                     growth={data.customerGrowth}
                     icon={Users}
+                    colorClass="text-orange-600"
                 />
+            </div>
 
-                {/* Card 5: Average Transaction */}
+            {/* ✅ Row 2: Average Transaction (full width or centered) */}
+            <div className="grid gap-4 mt-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 <Card
                     title="Rata-rata Transaksi"
                     value={formatCurrency(data.avgTransaction)}
                     growth={data.avgGrowth}
                     icon={Activity}
+                    colorClass="text-teal-600"
                 />
-
+                {/* Empty spacers for alignment */}
+                <div className="hidden xl:block"></div>
+                <div className="hidden xl:block"></div>
+                <div className="hidden xl:block"></div>
+                <div className="hidden xl:block"></div>
+                <div className="hidden xl:block"></div>
             </div>
         </div>
     );
 }
 
-// ✅ Updated Card component dengan subtitle support
-function Card({ title, value, growth, icon: Icon, subtitle }: CardProps) {
+function Card({ title, value, growth, icon: Icon, subtitle, colorClass = "text-pink-600" }: CardProps) {
     const isPositive = growth > 0;
     const isNeutral = growth === 0;
     const isNegative = growth < 0;
 
-    let colorClass = "text-gray-500";
+    let growthColorClass = "text-gray-500";
     let TrendIcon = Minus;
     let prefix = "";
 
     if (isPositive) {
-        colorClass = "text-green-600";
+        growthColorClass = "text-green-600";
         TrendIcon = TrendingUp;
         prefix = "+";
     } else if (isNegative) {
-        colorClass = "text-red-500";
+        growthColorClass = "text-red-500";
         TrendIcon = TrendingDown;
         prefix = "";
     }
 
     return (
-        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200">
             {/* Header dengan icon */}
-            <div className="flex items-center gap-2 text-gray-500 text-sm mb-2">
-                <Icon className="w-4 h-4" /> {title}
+            <div className="flex items-center gap-2 text-gray-500 text-xs mb-3">
+                <Icon className="w-4 h-4" />
+                <span className="font-medium">{title}</span>
             </div>
 
             {/* Value utama */}
-            <p className="text-2xl font-bold text-pink-600">{value}</p>
+            <p className={`text-xl lg:text-2xl font-bold ${colorClass} mb-1 truncate`}>
+                {value}
+            </p>
 
-            {/* ✅ Subtitle (misal: Margin %) */}
+            {/* Subtitle (margin %) */}
             {subtitle && (
-                <p className="text-xs text-gray-600 mt-1 font-medium">{subtitle}</p>
+                <p className="text-xs text-gray-600 font-medium mb-2">{subtitle}</p>
             )}
 
             {/* Growth indicator */}
-            <p className={`text-xs font-medium mt-2 flex items-center gap-1 ${colorClass}`}>
-                <TrendIcon className="w-3 h-3" />
-                {isNeutral ? "Stabil" : `${prefix}${growth.toFixed(1)}% dari tahun lalu`}
-            </p>
+            <div className={`text-xs font-medium flex items-center gap-1 ${growthColorClass}`}>
+                <TrendIcon className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">
+                    {isNeutral ? "Stabil" : `${prefix}${growth.toFixed(1)}% dari tahun lalu`}
+                </span>
+            </div>
         </div>
     );
 }

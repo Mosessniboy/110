@@ -463,6 +463,8 @@ function calculateGrowth(current: number, previous: number) {
 
 // app/lib/data.ts
 
+// app/lib/data.ts
+
 export async function fetchReportSummary(year: number) {
   noStore();
   const prevYear = year - 1;
@@ -488,7 +490,7 @@ export async function fetchReportSummary(year: number) {
       WHERE EXTRACT(YEAR FROM t.created_at) = ${prevYear}
     `;
 
-    // ✅ 3. HPP Calculation for Current Year
+    // 3. HPP Calculation for Current Year
     const currentHPPPromise = sql`
       SELECT 
         SUM(ti.quantity * COALESCE(m.hpp, 0)) as total_hpp
@@ -498,7 +500,7 @@ export async function fetchReportSummary(year: number) {
       WHERE EXTRACT(YEAR FROM t.created_at) = ${year}
     `;
 
-    // ✅ 4. HPP Calculation for Previous Year
+    // 4. HPP Calculation for Previous Year
     const prevHPPPromise = sql`
       SELECT 
         SUM(ti.quantity * COALESCE(m.hpp, 0)) as total_hpp
@@ -508,11 +510,27 @@ export async function fetchReportSummary(year: number) {
       WHERE EXTRACT(YEAR FROM t.created_at) = ${prevYear}
     `;
 
-    const [currResult, prevResult, currHPP, prevHPP] = await Promise.all([
+    // ✅ 5. EXPENSE Calculation for Current Year (NEW!)
+    const currentExpensePromise = sql`
+      SELECT SUM(amount) as total_expense
+      FROM expenses
+      WHERE EXTRACT(YEAR FROM expense_date) = ${year}
+    `;
+
+    // ✅ 6. EXPENSE Calculation for Previous Year (NEW!)
+    const prevExpensePromise = sql`
+      SELECT SUM(amount) as total_expense
+      FROM expenses
+      WHERE EXTRACT(YEAR FROM expense_date) = ${prevYear}
+    `;
+
+    const [currResult, prevResult, currHPP, prevHPP, currExpense, prevExpense] = await Promise.all([
       currentDataPromise,
       prevDataPromise,
       currentHPPPromise,
       prevHPPPromise,
+      currentExpensePromise,
+      prevExpensePromise,
     ]);
 
     const current = {
@@ -520,6 +538,7 @@ export async function fetchReportSummary(year: number) {
       transactions: Number(currResult[0].transactions) || 0,
       customers: Number(currResult[0].customers) || 0,
       hpp: Number(currHPP[0].total_hpp) || 0,
+      expense: Number(currExpense[0].total_expense) || 0, // ✅ NEW
     };
 
     const previous = {
@@ -527,15 +546,25 @@ export async function fetchReportSummary(year: number) {
       transactions: Number(prevResult[0].transactions) || 0,
       customers: Number(prevResult[0].customers) || 0,
       hpp: Number(prevHPP[0].total_hpp) || 0,
+      expense: Number(prevExpense[0].total_expense) || 0, // ✅ NEW
     };
 
-    // ✅ Calculate Net Profit
-    const currentProfit = current.revenue - current.hpp;
-    const previousProfit = previous.revenue - previous.hpp;
+    // ✅ Calculate Gross Profit (Revenue - HPP)
+    const grossProfit = current.revenue - current.hpp;
+    const prevGrossProfit = previous.revenue - previous.hpp;
+
+    // ✅ Calculate Net Income (Revenue - HPP - Expense)
+    const netIncome = current.revenue - current.hpp - current.expense;
+    const prevNetIncome = previous.revenue - previous.hpp - previous.expense;
     
     // ✅ Calculate Profit Margin
     const profitMargin = current.revenue > 0 
-      ? (currentProfit / current.revenue) * 100 
+      ? (grossProfit / current.revenue) * 100 
+      : 0;
+
+    // ✅ Calculate Net Margin
+    const netMargin = current.revenue > 0
+      ? (netIncome / current.revenue) * 100
       : 0;
 
     return {
@@ -556,10 +585,23 @@ export async function fetchReportSummary(year: number) {
         previous.transactions > 0 ? previous.revenue / previous.transactions : 0
       ),
 
-      // ✅ NEW: Profit Data
-      netProfit: currentProfit,
-      profitGrowth: calculateGrowth(currentProfit, previousProfit),
+      // ✅ Gross Profit Data
+      grossProfit: grossProfit,
+      grossProfitGrowth: calculateGrowth(grossProfit, prevGrossProfit),
       profitMargin: profitMargin,
+
+      // ✅ NEW: Expense Data
+      totalExpense: current.expense,
+      expenseGrowth: calculateGrowth(current.expense, previous.expense),
+
+      // ✅ NEW: Net Income Data
+      netIncome: netIncome,
+      netIncomeGrowth: calculateGrowth(netIncome, prevNetIncome),
+      netMargin: netMargin,
+
+      // Legacy (for backward compatibility)
+      netProfit: grossProfit,
+      profitGrowth: calculateGrowth(grossProfit, prevGrossProfit),
     };
 
   } catch (error) {
@@ -569,8 +611,106 @@ export async function fetchReportSummary(year: number) {
       totalTransactions: 0, transactionGrowth: 0,
       totalCustomers: 0, customerGrowth: 0,
       avgTransaction: 0, avgGrowth: 0,
-      netProfit: 0, profitGrowth: 0, profitMargin: 0,  // ✅ NEW
+      grossProfit: 0, grossProfitGrowth: 0, profitMargin: 0,
+      totalExpense: 0, expenseGrowth: 0,
+      netIncome: 0, netIncomeGrowth: 0, netMargin: 0,
+      netProfit: 0, profitGrowth: 0,
     };
+  }
+}
+
+// ============================================
+// CASH FLOW ANALYSIS (Revenue vs Expense)
+// ============================================
+export async function fetchCashFlowData(year: number) {
+  noStore();
+  try {
+    const revenueData = await sql<{ month: number; total: number }[]>`
+      SELECT 
+        EXTRACT(MONTH FROM created_at) as month,
+        SUM(total_amount) as total
+      FROM transactions
+      WHERE EXTRACT(YEAR FROM created_at) = ${year}
+      GROUP BY month
+      ORDER BY month ASC
+    `;
+
+    const expenseData = await sql<{ month: number; total: number }[]>`
+      SELECT 
+        EXTRACT(MONTH FROM expense_date) as month,
+        SUM(amount) as total
+      FROM expenses
+      WHERE EXTRACT(YEAR FROM expense_date) = ${year}
+      GROUP BY month
+      ORDER BY month ASC
+    `;
+
+    const hppData = await sql<{ month: number; total: number }[]>`
+      SELECT 
+        EXTRACT(MONTH FROM t.created_at) as month,
+        SUM(ti.quantity * COALESCE(m.hpp, 0)) as total
+      FROM transaction_items ti
+      JOIN transactions t ON ti.transaction_id = t.id
+      JOIN menus m ON ti.menu_id = m.id
+      WHERE EXTRACT(YEAR FROM t.created_at) = ${year}
+      GROUP BY month
+      ORDER BY month ASC
+    `;
+
+    return Array.from({ length: 12 }, (_, i) => {
+      const revenue = revenueData.find(d => Number(d.month) === i + 1);
+      const expense = expenseData.find(d => Number(d.month) === i + 1);
+      const hpp = hppData.find(d => Number(d.month) === i + 1);
+
+      const revenueAmount = revenue ? Number(revenue.total) : 0;
+      const expenseAmount = expense ? Number(expense.total) : 0;
+      const hppAmount = hpp ? Number(hpp.total) : 0;
+
+      const netIncome = revenueAmount - hppAmount - expenseAmount;
+
+      return {
+        name: new Date(0, i).toLocaleString('id-ID', { month: 'short' }),
+        revenue: revenueAmount,
+        expense: expenseAmount,
+        hpp: hppAmount,
+        netIncome: netIncome,
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching cash flow:', error);
+    return [];
+  }
+}
+
+// ============================================
+// EXPENSE BY CATEGORY
+// ============================================
+export async function fetchExpenseByCategory(year: number) {
+  noStore();
+  try {
+    const data = await sql<{
+      category: string;
+      total: number;
+      count: number;
+    }[]>`
+      SELECT 
+        category,
+        SUM(amount) as total,
+        COUNT(*) as count
+      FROM expenses
+      WHERE EXTRACT(YEAR FROM expense_date) = ${year}
+      GROUP BY category
+      ORDER BY total DESC
+    `;
+
+    return data.map(item => ({
+      category: item.category,
+      total: Number(item.total),
+      count: Number(item.count),
+    }));
+  } catch (error) {
+    console.error('Error fetching expense by category:', error);
+    return [];
   }
 }
 

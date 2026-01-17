@@ -1,6 +1,4 @@
 // app/dashboard/laporan/page.tsx
-// ✅ FIXED: Proper async searchParams handling for Next.js 15
-import { fetchExpenseSummary } from '@/app/lib/data';
 
 import { 
   fetchReportSummary, 
@@ -10,8 +8,11 @@ import {
   fetchCustomerMetrics,
   fetchRevenueChartData,
   fetchTransactionTrendData,
-  fetchStockUsageAnalysis
+  fetchCashFlowData,
+  fetchExpenseByCategory,
+  fetchStockUsageAnalysis,
 } from '@/app/lib/data';
+
 import SummaryCards from '@/app/ui/laporan/summary-cards';
 import { 
   MonthlyProfitChart,
@@ -19,25 +20,27 @@ import {
   PeakHoursChart,
   AOVTrendChart,
   RevenueChart,
-  TransactionChart
+  TransactionChart,
+  CashFlowChart,
+  ExpenseBreakdownCard,
 } from '@/app/ui/laporan/charts';
+
 import {
   CustomerRetentionCard,
   TopMenuPerformanceCard,
   PeakHoursSummaryCard
 } from '@/app/ui/laporan/matrikcard';
+
 import { StockUsageAnalysisCard } from '@/app/ui/laporan/stock-usage-card';
-import { BarChart3, TrendingUp, Coffee, Clock, Package, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { BarChart3, TrendingUp, Coffee, Clock, Wallet, Package, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import YearSelector from '@/app/ui/laporan/YearSelector';
 import { formatCurrency } from '@/app/lib/utils';
 
-// ✅ FIX: Props type untuk Next.js 15
 type PageProps = {
-  searchParams: Promise<{ year?: string }>;  // ✅ Now it's a Promise!
+  searchParams: Promise<{ year?: string }>;
 };
 
 export default async function LaporanPage(props: PageProps) {
-  // ✅ FIX: Await searchParams (Next.js 15 requirement)
   const searchParams = await props.searchParams;
   
   const currentYear = new Date().getFullYear();
@@ -45,11 +48,7 @@ export default async function LaporanPage(props: PageProps) {
     ? parseInt(searchParams.year, 10) 
     : currentYear;
 
-  // ✅ Validasi: Handle NaN
   const validYear = isNaN(selectedYear) ? currentYear : selectedYear;
-
-  console.log('📅 [Laporan Page] Selected Year:', validYear);
-  console.log('🔍 [Laporan Page] Search Params:', searchParams);
 
   // Fetch all data
   const [
@@ -60,7 +59,9 @@ export default async function LaporanPage(props: PageProps) {
     customerMetrics,
     revenueData,
     transactionData,
-    stockUsage
+    cashFlowData,
+    expenseByCategory,
+    stockUsage,
   ] = await Promise.all([
     fetchReportSummary(validYear),
     fetchMonthlyProfitData(validYear),
@@ -69,15 +70,10 @@ export default async function LaporanPage(props: PageProps) {
     fetchCustomerMetrics(validYear),
     fetchRevenueChartData(validYear),
     fetchTransactionTrendData(validYear),
-    fetchStockUsageAnalysis(validYear)
+    fetchCashFlowData(validYear),
+    fetchExpenseByCategory(validYear),
+    fetchStockUsageAnalysis(validYear),
   ]);
-
-  // ✅ Debug log untuk verify data fetch
-  console.log('📊 [Laporan Page] Summary Data:', {
-    revenue: summary.totalRevenue,
-    profit: summary.netProfit,
-    margin: summary.profitMargin
-  });
 
   return (
     <div className="space-y-8">
@@ -89,15 +85,59 @@ export default async function LaporanPage(props: PageProps) {
             Analisis lengkap performa bisnis tahun {validYear}
           </p>
         </div>
-
-        {/* Year Selector */}
         <YearSelector defaultYear={validYear} />
       </div>
 
       {/* 1. SUMMARY CARDS */}
       <SummaryCards data={summary} />
 
-      {/* 2. PROFIT ANALYSIS */}
+      {/* 2. CASH FLOW ANALYSIS */}
+      <div className="rounded-xl border border-pink-100 bg-white p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <Wallet className="w-5 h-5 text-pink-600" />
+          <h2 className="text-lg font-bold text-pink-600">
+            Analisis Cash Flow (Pendapatan vs Pengeluaran)
+          </h2>
+        </div>
+
+        <CashFlowChart data={cashFlowData} />
+
+        {/* Quick Insights */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-green-50 p-4 rounded-lg border border-green-100">
+            <p className="text-sm text-green-700 mb-1">Total Pendapatan</p>
+            <p className="text-2xl font-bold text-green-600">
+              {formatCurrency(cashFlowData.reduce((sum, m) => sum + m.revenue, 0))}
+            </p>
+          </div>
+          
+          <div className="bg-red-50 p-4 rounded-lg border border-red-100">
+            <p className="text-sm text-red-700 mb-1">Total Pengeluaran</p>
+            <p className="text-2xl font-bold text-red-600">
+              {formatCurrency(cashFlowData.reduce((sum, m) => sum + m.expense, 0))}
+            </p>
+          </div>
+
+          <div className="bg-orange-50 p-4 rounded-lg border border-orange-100">
+            <p className="text-sm text-orange-700 mb-1">Total HPP</p>
+            <p className="text-2xl font-bold text-orange-600">
+              {formatCurrency(cashFlowData.reduce((sum, m) => sum + m.hpp, 0))}
+            </p>
+          </div>
+          
+          <div className="bg-pink-50 p-4 rounded-lg border border-pink-100">
+            <p className="text-sm text-pink-700 mb-1">Net Income</p>
+            <p className="text-2xl font-bold text-pink-600">
+              {formatCurrency(cashFlowData.reduce((sum, m) => sum + m.netIncome, 0))}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. EXPENSE BREAKDOWN */}
+      <ExpenseBreakdownCard data={expenseByCategory} />
+
+      {/* 4. PROFIT ANALYSIS */}
       <div className="rounded-xl border border-pink-100 bg-white p-6">
         <div className="flex items-center gap-2 mb-6">
           <TrendingUp className="w-5 h-5 text-pink-600" />
@@ -110,11 +150,9 @@ export default async function LaporanPage(props: PageProps) {
         {/* Quick Insights */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-            <p className="text-sm text-green-700 mb-1">Total Profit Tahun Ini</p>
+            <p className="text-sm text-green-700 mb-1">Total Gross Profit Tahun Ini</p>
             <p className="text-2xl font-bold text-green-600">
-              {formatCurrency(
-                profitData.reduce((sum, m) => sum + m.profit, 0)
-              )}
+              {formatCurrency(profitData.reduce((sum, m) => sum + m.profit, 0))}
             </p>
           </div>
           
@@ -143,13 +181,13 @@ export default async function LaporanPage(props: PageProps) {
         </div>
       </div>
 
-      {/* 3. MENU ANALYSIS & CUSTOMER RETENTION */}
+      {/* 5. MENU ANALYSIS & CUSTOMER RETENTION */}
       <div className="grid lg:grid-cols-2 gap-6">
         <TopMenuPerformanceCard data={menuAnalysis} />
         <CustomerRetentionCard data={customerMetrics} />
       </div>
 
-      {/* 4. MENU ANALYSIS CHART */}
+      {/* 6. MENU ANALYSIS CHART */}
       <div className="rounded-xl border border-pink-100 bg-white p-6">
         <div className="flex items-center gap-2 mb-6">
           <Coffee className="w-5 h-5 text-pink-600" />
@@ -160,7 +198,7 @@ export default async function LaporanPage(props: PageProps) {
         <MenuAnalysisChart data={menuAnalysis} />
       </div>
 
-      {/* 5. PEAK HOURS ANALYSIS */}
+      {/* 7. PEAK HOURS ANALYSIS */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 rounded-xl border border-pink-100 bg-white p-6">
           <div className="flex items-center gap-2 mb-6">
@@ -175,7 +213,7 @@ export default async function LaporanPage(props: PageProps) {
         <PeakHoursSummaryCard data={peakHours} />
       </div>
 
-      {/* 6. AOV TREND */}
+      {/* 8. AOV TREND */}
       <div className="rounded-xl border border-pink-100 bg-white p-6">
         <div className="flex items-center gap-2 mb-6">
           <BarChart3 className="w-5 h-5 text-pink-600" />
@@ -192,7 +230,7 @@ export default async function LaporanPage(props: PageProps) {
             <span className="font-bold">
               {formatCurrency(
                 customerMetrics.monthlyAOV.reduce((sum, m) => sum + m.aov, 0) / 
-                customerMetrics.monthlyAOV.filter(m => m.aov > 0).length || 1
+                (customerMetrics.monthlyAOV.filter(m => m.aov > 0).length || 1)
               )}
             </span>
             {' '}per transaksi
@@ -200,10 +238,10 @@ export default async function LaporanPage(props: PageProps) {
         </div>
       </div>
 
-      {/* 7. STOCK USAGE ANALYSIS */}
+      {/* 9. STOCK USAGE ANALYSIS */}
       <StockUsageAnalysisCard data={stockUsage} />
 
-      {/* 8. REVENUE & TRANSACTION */}
+      {/* 10. REVENUE & TRANSACTION */}
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="rounded-xl border border-pink-100 bg-white p-6">
           <h2 className="text-lg font-bold text-pink-600 mb-4">
@@ -220,13 +258,13 @@ export default async function LaporanPage(props: PageProps) {
         </div>
       </div>
 
-      {/* 9. ACTIONABLE INSIGHTS */}
+      {/* 11. ACTIONABLE INSIGHTS */}
       <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-6">
         <h3 className="text-lg font-bold text-yellow-800 mb-4">
           💡 Rekomendasi Aksi
         </h3>
         <div className="space-y-3">
-          {generateInsights(summary, menuAnalysis, peakHours, customerMetrics)}
+          {generateInsights(summary, menuAnalysis, peakHours, customerMetrics, expenseByCategory)}
         </div>
       </div>
     </div>
@@ -238,39 +276,60 @@ function generateInsights(
   summary: any,
   menuAnalysis: any[],
   peakHours: any[],
-  customerMetrics: any
+  customerMetrics: any,
+  expenseData: any[]
 ) {
   const insights = [];
 
-  // 1. Profit Margin Check
-  if (summary.profitMargin < 30) {
+  // 1. Net Margin Check
+  if (summary.netMargin < 20) {
     insights.push(
-      <div key="margin" className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
+      <div key="net-margin" className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
         <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-semibold text-red-800">Margin Rendah</p>
+          <p className="text-sm font-semibold text-red-800">Net Margin Rendah</p>
           <p className="text-sm text-red-700">
-            Profit margin Anda {summary.profitMargin.toFixed(1)}% lebih rendah dari standar industri F&B (30-40%). 
-            Pertimbangkan untuk menaikkan harga atau mengurangi HPP.
+            Net margin Anda {summary.netMargin.toFixed(1)}% setelah dikurangi semua pengeluaran. 
+            Evaluasi pengeluaran operasional untuk meningkatkan profitabilitas.
           </p>
         </div>
       </div>
     );
   } else {
     insights.push(
-      <div key="margin-good" className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+      <div key="net-margin-good" className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
         <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-semibold text-green-800">Margin Sehat</p>
+          <p className="text-sm font-semibold text-green-800">Net Margin Sehat</p>
           <p className="text-sm text-green-700">
-            Profit margin {summary.profitMargin.toFixed(1)}% sudah di atas standar industri. Pertahankan!
+            Net margin {summary.netMargin.toFixed(1)}% menunjukkan bisnis Anda profitable setelah semua pengeluaran!
           </p>
         </div>
       </div>
     );
   }
 
-  // 2. Low Margin Menu
+  // 2. Expense Control
+  const expenseRatio = summary.totalRevenue > 0 
+    ? (summary.totalExpense / summary.totalRevenue) * 100 
+    : 0;
+    
+  if (expenseRatio > 30) {
+    insights.push(
+      <div key="expense" className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+        <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-orange-800">Pengeluaran Tinggi</p>
+          <p className="text-sm text-orange-700">
+            Pengeluaran operasional mencapai {expenseRatio.toFixed(1)}% dari revenue. 
+            Tinjau kategori pengeluaran terbesar untuk efisiensi biaya.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Low Margin Menu
   const lowMarginMenus = menuAnalysis.filter(m => m.margin < 40 && m.sold > 10).slice(0, 3);
   if (lowMarginMenus.length > 0) {
     insights.push(
@@ -280,15 +339,14 @@ function generateInsights(
           <p className="text-sm font-semibold text-yellow-800">Menu Margin Rendah</p>
           <p className="text-sm text-yellow-700">
             Menu berikut memiliki margin di bawah 40%:{' '}
-            <span className="font-semibold">{lowMarginMenus.map(m => m.name).join(', ')}</span>
-            . Evaluasi harga jual atau resep untuk meningkatkan profitabilitas.
+            <span className="font-semibold">{lowMarginMenus.map(m => m.name).join(', ')}</span>.
           </p>
         </div>
       </div>
     );
   }
 
-  // 3. Peak Hours Optimization
+  // 4. Peak Hours
   const sortedHours = [...peakHours].sort((a, b) => b.transactions - a.transactions);
   const peakHour = sortedHours[0];
   if (peakHour && peakHour.transactions > 0) {
@@ -298,16 +356,14 @@ function generateInsights(
         <div>
           <p className="text-sm font-semibold text-blue-800">Optimasi Jam Ramai</p>
           <p className="text-sm text-blue-700">
-            <span className="font-semibold">{peakHour.hour}</span> adalah jam tersibuk dengan{' '}
-            {peakHour.transactions} transaksi. Pastikan stok dan staff mencukupi pada jam ini 
-            untuk memaksimalkan penjualan.
+            {peakHour.hour} adalah jam tersibuk. Pastikan stok dan staff mencukupi.
           </p>
         </div>
       </div>
     );
   }
 
-  // 4. Customer Retention
+  // 5. Customer Retention
   if (customerMetrics.retentionRate < 50) {
     insights.push(
       <div key="retention" className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
@@ -315,41 +371,18 @@ function generateInsights(
         <div>
           <p className="text-sm font-semibold text-purple-800">Retention Rendah</p>
           <p className="text-sm text-purple-700">
-            Hanya {customerMetrics.retentionRate.toFixed(1)}% pelanggan yang kembali. 
-            Pertimbangkan program loyalitas, member card, atau sistem poin untuk meningkatkan repeat purchase.
-          </p>
-        </div>
-      </div>
-    );
-  } else {
-    insights.push(
-      <div key="retention-good" className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-semibold text-green-800">Loyalitas Bagus</p>
-          <p className="text-sm text-green-700">
-            Retention rate {customerMetrics.retentionRate.toFixed(1)}% menunjukkan pelanggan puas dengan produk Anda!
+            {customerMetrics.retentionRate.toFixed(1)}% pelanggan kembali. 
+            Pertimbangkan program loyalitas.
           </p>
         </div>
       </div>
     );
   }
 
-  // 5. Revenue Growth
-  if (summary.revenueGrowth < 0) {
-    insights.push(
-      <div key="revenue" className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-200">
-        <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-semibold text-red-800">Pendapatan Menurun</p>
-          <p className="text-sm text-red-700">
-            Revenue turun {Math.abs(summary.revenueGrowth).toFixed(1)}% dari tahun lalu. 
-            Evaluasi strategi marketing, menu, atau pricing untuk boost penjualan.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return insights;
+  return insights.length > 0 ? insights : [
+    <div key="good" className="flex items-start gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+      <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+      <p className="text-sm text-green-700 font-semibold">✅ Performa bisnis Anda sangat baik!</p>
+    </div>
+  ];
 }

@@ -102,24 +102,21 @@ export type Expense = {
 };
 
 export const EXPENSE_CATEGORIES = [
-  '🔌 Listrik',
+  '🧊 Es Batu',
+  '🔌 Gas',
   '💧 Air',
-  '📱 Internet/Telepon',
   '🏠 Sewa Tempat',
   '👤 Gaji Karyawan',
   '🛍️ Belanja Bahan Baku',
   '🚚 Transportasi/Bensin',
-  '🧹 Kebersihan',
   '📦 Kemasan',
-  '📝 ATK',
   '🎯 Marketing',
   '🔧 Perbaikan',
   '💳 Lain-lain',
+  
 ] as const;
 
 export const PAYMENT_METHODS = [
   '💵 Cash',
   '💳 Transfer',
-  '🏦 Debit',
-  '💰 E-wallet',
 ] as const;
